@@ -4,7 +4,7 @@ import { Plus, LogOut, Settings } from 'lucide-react';
 import './Topbar.css';
 
 export default function Topbar() {
-  const { activePage, setActivePage, setNewTaskModalOpen, currentUser, setCurrentUser } = useUI();
+  const { activePage, setActivePage, setNewTaskModalOpen, currentUser, signOut } = useUI();
 
   const pageLabels = { Team: 'My Team', Settings: 'Settings' };
 
@@ -49,7 +49,7 @@ export default function Topbar() {
               <Settings size={14} /> Settings
             </button>
             <button
-              onClick={() => { setCurrentUser(null); document.getElementById('profile-menu').style.display = 'none'; }}
+              onClick={() => { signOut(); document.getElementById('profile-menu').style.display = 'none'; }}
               style={{ width: '100%', padding: '12px 16px', textAlign: 'left', backgroundColor: 'transparent', border: 'none', color: 'var(--color-accent)', cursor: 'pointer', fontWeight: 'bold', display: 'flex', alignItems: 'center', gap: '8px', fontSize: '14px' }}
             >
               <LogOut size={14} /> Log Out

@@ -84,7 +84,7 @@ export default function NewTaskModal() {
     handleClose();
   };
 
-  const executors = state.members.filter(m => m.role === 'Executive' || m.role === 'Graphic Designer');
+  const executors = state.members.filter(m => m.role !== 'Admin');
 
   const inputStyle  = { width: '100%', padding: '10px 14px', background: 'var(--color-bg)', border: '1px solid var(--color-border)', borderRadius: '8px', color: 'var(--color-text)', outline: 'none', fontSize: '14px', boxSizing: 'border-box' };
   const labelStyle  = { display: 'block', fontSize: '11px', fontWeight: 700, color: 'var(--color-text-muted)', marginBottom: '8px', textTransform: 'uppercase', letterSpacing: '0.6px' };
@@ -151,8 +151,12 @@ export default function NewTaskModal() {
           {/* Assignees */}
           <div>
             <label style={labelStyle}>Assign To</label>
-            <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap', padding: '10px', backgroundColor: 'var(--color-bg)', border: '1px solid var(--color-border)', borderRadius: '8px' }}>
-              {executors.map(m => {
+            <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap', padding: '10px', backgroundColor: 'var(--color-bg)', border: '1px solid var(--color-border)', borderRadius: '8px', minHeight: '48px', alignItems: 'center' }}>
+              {executors.length === 0 ? (
+                <span style={{ fontSize: '13px', color: 'var(--color-text-muted)', fontStyle: 'italic' }}>
+                  {state.loading ? 'Loading team…' : 'No team members found. Create accounts in Admin settings.'}
+                </span>
+              ) : executors.map(m => {
                 const selected = assignees.includes(m.id);
                 return (
                   <div

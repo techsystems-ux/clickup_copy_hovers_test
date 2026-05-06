@@ -11,6 +11,7 @@ import HomeView from './components/views/HomeView';
 import AccountsView from './components/views/AccountsView';
 import KnowledgeBaseView from './components/views/KnowledgeBaseView';
 import LoginView from './components/views/LoginView';
+import AdminDashboard from './components/views/AdminDashboard';
 import { useUI } from './store/UIContext';
 import './App.css';
 
@@ -38,7 +39,7 @@ function App() {
       case 'Accounts':      return <AccountsView />;
       case 'Tasks':         return isManager ? <ManagerTeamView /> : <ExecutorDashboard />;
       case 'KnowledgeBase': return <KnowledgeBaseView />;
-      case 'Settings':      return <SettingsView />;
+      case 'Settings':      return currentUser.role === 'Admin' ? <AdminDashboard /> : <SettingsView />;
       default:              return <HomeView />;
     }
   };

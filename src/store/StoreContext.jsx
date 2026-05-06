@@ -112,16 +112,35 @@ export function StoreProvider({ children }) {
   }, []);
 
   useEffect(() => {
-    fetchAll();
+    let channel = null;
 
-    // Real-time: re-fetch tasks whenever tasks or comments change
-    const channel = supabase
-      .channel('realtime-hovers')
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'tasks'    }, fetchTasks)
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'comments' }, fetchTasks)
-      .subscribe();
+    const setupRealtime = () => {
+      if (channel) return;
+      channel = supabase
+        .channel('realtime-hovers')
+        .on('postgres_changes', { event: '*', schema: 'public', table: 'tasks'    }, fetchTasks)
+        .on('postgres_changes', { event: '*', schema: 'public', table: 'comments' }, fetchTasks)
+        .subscribe();
+    };
 
-    return () => { supabase.removeChannel(channel); };
+    // Wait for Supabase to restore the session before fetching (fixes RLS empty-state bug)
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      if (session) { fetchAll(); setupRealtime(); }
+      else setState(s => ({ ...s, loading: false }));
+    });
+
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
+      if (event === 'SIGNED_IN') { fetchAll(); setupRealtime(); }
+      if (event === 'SIGNED_OUT') {
+        setState({ members: [], spaces: [], lists: [], tasks: [], statuses: STATUS_COLUMNS, loading: false });
+        if (channel) { supabase.removeChannel(channel); channel = null; }
+      }
+    });
+
+    return () => {
+      if (channel) supabase.removeChannel(channel);
+      subscription.unsubscribe();
+    };
   }, [fetchAll, fetchTasks]);
 
   // ── Mutations ─────────────────────────────────────────────────────────────
@@ -213,13 +232,58 @@ export function StoreProvider({ children }) {
         break;
       }
 
+      case 'ADD_MEMBER_LOCAL': {
+        setState(s => ({ ...s, members: [...s.members, action.payload] }));
+        break;
+      }
+
+      case 'UPDATE_MEMBER_ROLE': {
+        const { memberId, role } = action.payload;
+        setState(s => ({ ...s, members: s.members.map(m => m.id === memberId ? { ...m, role } : m) }));
+        supabase.from('profiles').update({ role }).eq('id', memberId)
+          .then(({ error }) => { if (error) console.error('UPDATE_MEMBER_ROLE:', error.message); });
+        break;
+      }
+
+      case 'DELETE_MEMBER': {
+        const { memberId } = action.payload;
+        setState(s => ({ ...s, members: s.members.filter(m => m.id !== memberId) }));
+        supabase.from('profiles').delete().eq('id', memberId)
+          .then(({ error }) => { if (error) console.error('DELETE_MEMBER:', error.message); });
+        break;
+      }
+
+      case 'ADD_SPACE': {
+        const sp = action.payload;
+        setState(s => ({ ...s, spaces: [...s.spaces, sp] }));
+        supabase.from('spaces').insert({ id: sp.id, name: sp.name, color: sp.color, icon: sp.icon })
+          .then(({ error }) => { if (error) console.error('ADD_SPACE:', error.message); });
+        break;
+      }
+
+      case 'ADD_LIST': {
+        const li = action.payload;
+        setState(s => ({ ...s, lists: [...s.lists, li] }));
+        supabase.from('lists').insert({ id: li.id, space_id: li.spaceId, name: li.name })
+          .then(({ error }) => { if (error) console.error('ADD_LIST:', error.message); });
+        break;
+      }
+
+      case 'DELETE_LIST': {
+        const { listId } = action.payload;
+        setState(s => ({ ...s, lists: s.lists.filter(l => l.id !== listId) }));
+        supabase.from('lists').delete().eq('id', listId)
+          .then(({ error }) => { if (error) console.error('DELETE_LIST:', error.message); });
+        break;
+      }
+
       default:
         console.warn('Unknown dispatch action:', action.type);
     }
   };
 
   return (
-    <StoreContext.Provider value={{ state, dispatch, updateTaskStatus, updateTask }}>
+    <StoreContext.Provider value={{ state, dispatch, updateTaskStatus, updateTask, fetchAll }}>
       {children}
     </StoreContext.Provider>
   );

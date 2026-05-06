@@ -1,6 +1,6 @@
 import React from 'react';
 import { useUI } from '../../store/UIContext';
-import { Home, Users, CheckSquare, BookOpen, Settings, Menu, ChevronDown } from 'lucide-react';
+import { Home, Users, CheckSquare, BookOpen, Settings, ShieldCheck, Menu, ChevronDown } from 'lucide-react';
 import './Sidebar.css';
 
 function NavItem({ icon: Icon, label, isActive, isCollapsed, onClick }) {
@@ -13,7 +13,8 @@ function NavItem({ icon: Icon, label, isActive, isCollapsed, onClick }) {
 }
 
 export default function Sidebar() {
-  const { isSidebarCollapsed, toggleSidebar, activePage, setActivePage } = useUI();
+  const { isSidebarCollapsed, toggleSidebar, activePage, setActivePage, currentUser } = useUI();
+  const isAdmin = currentUser?.role === 'Admin';
 
   return (
     <aside className={`sidebar ${isSidebarCollapsed ? 'collapsed' : ''}`}>
@@ -41,7 +42,7 @@ export default function Sidebar() {
 
       <div className="sidebar-footer">
         <div className="nav-section">
-          <NavItem icon={Settings} label="Settings" isActive={activePage === 'Settings'} isCollapsed={isSidebarCollapsed} onClick={() => setActivePage('Settings')} />
+          <NavItem icon={isAdmin ? ShieldCheck : Settings} label={isAdmin ? 'Admin' : 'Settings'} isActive={activePage === 'Settings'} isCollapsed={isSidebarCollapsed} onClick={() => setActivePage('Settings')} />
         </div>
       </div>
     </aside>
