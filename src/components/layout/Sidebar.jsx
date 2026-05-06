@@ -3,6 +3,7 @@ import { useUI } from '../../store/UIContext';
 import { Home, Users, CheckSquare, BookOpen, Settings, ShieldCheck, Menu, ChevronDown } from 'lucide-react';
 import './Sidebar.css';
 
+// Defined outside Sidebar to avoid recreation on every render
 function NavItem({ icon: Icon, label, isActive, isCollapsed, onClick }) {
   return (
     <div className={`nav-item ${isActive ? 'active' : ''}`} onClick={onClick}>

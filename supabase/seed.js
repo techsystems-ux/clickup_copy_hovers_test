@@ -1,3 +1,4 @@
+/* eslint-env node */
 /**
  * Hovers Agency — Supabase Seed Script
  *

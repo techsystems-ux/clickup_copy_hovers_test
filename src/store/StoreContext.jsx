@@ -158,7 +158,8 @@ export function StoreProvider({ children }) {
       ...s,
       tasks: s.tasks.map(t => t.id === taskUpdates.id ? { ...t, ...taskUpdates } : t),
     }));
-    const { id, comments, brand, ...rest } = taskUpdates; // strip computed/nested fields
+    // eslint-disable-next-line no-unused-vars
+    const { id, comments: _comments, brand: _brand, ...rest } = taskUpdates;
     const dbUpdates = {};
     if (rest.title       !== undefined) dbUpdates.title        = rest.title;
     if (rest.description !== undefined) dbUpdates.description  = rest.description;

@@ -125,7 +125,6 @@ function ManagerKnowledgeBase() {
 
 // ─── Color swatch ────────────────────────────────────────────────────────────
 function ColorSwatch({ name, hex }) {
-  const isDark = parseInt(hex.slice(1), 16) < 0x888888;
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', flex: '1 1 80px', minWidth: '80px' }}>
       <div style={{

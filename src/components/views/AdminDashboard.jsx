@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { createClient } from '@supabase/supabase-js';
 import {
   Users, Building2, BarChart2, Plus, Eye, EyeOff,
   Trash2, Edit3, Check, X, ShieldCheck,
@@ -7,55 +8,59 @@ import { supabase } from '../../lib/supabase';
 import { useStore } from '../../store/StoreContext';
 import { useUI } from '../../store/UIContext';
 
-const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL;
-const SERVICE_KEY  = import.meta.env.VITE_SUPABASE_SERVICE_KEY;
+// Secondary client with no session persistence — signUp won't override the admin's session
+const signupClient = createClient(
+  import.meta.env.VITE_SUPABASE_URL,
+  import.meta.env.VITE_SUPABASE_ANON_KEY,
+  { auth: { persistSession: false, autoRefreshToken: false, detectSessionInUrl: false } }
+);
 
 const ROLES = ['Manager', 'Executive', 'Graphic Designer'];
 
 const ROLE_STYLE = {
-  Admin:             { bg: '#111111',              color: '#ffffff' },
-  Manager:           { bg: '#2c2c2c',              color: '#ffffff' },
-  Executive:         { bg: 'rgba(33,150,243,0.15)', color: '#1565c0' },
-  'Graphic Designer':{ bg: 'rgba(156,39,176,0.12)', color: '#7b1fa2' },
+  Admin:              { bg: '#111111',               color: '#ffffff' },
+  Manager:            { bg: '#2c2c2c',               color: '#ffffff' },
+  Executive:          { bg: 'rgba(33,150,243,0.15)', color: '#1565c0' },
+  'Graphic Designer': { bg: 'rgba(156,39,176,0.12)', color: '#7b1fa2' },
 };
 
 const PRESET_COLORS = ['#111111','#e91e63','#ff6900','#2196f3','#4caf50','#ff9800','#9c27b0','#00bcd4','#f44336','#607d8b'];
 const PRESET_ICONS  = ['🚀','🛍️','🌸','⚡','🎯','💎','🎨','📱','🏆','🌟','🎬','📦'];
 
-const RoleBadge = ({ role }) => {
+function RoleBadge({ role }) {
   const s = ROLE_STYLE[role] || { bg: 'var(--color-surface-2)', color: 'var(--color-text-muted)' };
   return (
     <span style={{ fontSize: '11px', fontWeight: 700, padding: '3px 10px', borderRadius: '99px', backgroundColor: s.bg, color: s.color, whiteSpace: 'nowrap' }}>
       {role}
     </span>
   );
-};
+}
 
 export default function AdminDashboard() {
-  const { state, dispatch, fetchAll } = useStore();
+  const { state, dispatch } = useStore();
   const { currentUser } = useUI();
   const [tab, setTab] = useState('team');
 
   // ── Create user ──────────────────────────────────────────────────────────
-  const [uName,    setUName]    = useState('');
-  const [uEmail,   setUEmail]   = useState('');
-  const [uPass,    setUPass]    = useState('');
-  const [uRole,    setURole]    = useState('Graphic Designer');
-  const [showPass, setShowPass] = useState(false);
-  const [creating, setCreating] = useState(false);
-  const [createMsg, setCreateMsg] = useState(null); // { ok: bool, text: string }
+  const [uName,     setUName]     = useState('');
+  const [uEmail,    setUEmail]    = useState('');
+  const [uPass,     setUPass]     = useState('');
+  const [uRole,     setURole]     = useState('Graphic Designer');
+  const [showPass,  setShowPass]  = useState(false);
+  const [creating,  setCreating]  = useState(false);
+  const [createMsg, setCreateMsg] = useState(null);
 
   // ── Role editing ─────────────────────────────────────────────────────────
-  const [editingRole, setEditingRole] = useState(null); // { id, role }
+  const [editingRole, setEditingRole] = useState(null);
 
   // ── Create brand ─────────────────────────────────────────────────────────
-  const [bName,   setBName]   = useState('');
-  const [bColor,  setBColor]  = useState('#111111');
-  const [bIcon,   setBIcon]   = useState('🚀');
+  const [bName,  setBName]  = useState('');
+  const [bColor, setBColor] = useState('#111111');
+  const [bIcon,  setBIcon]  = useState('🚀');
 
   // ── Add list ─────────────────────────────────────────────────────────────
-  const [addListTo,    setAddListTo]    = useState(null);
-  const [newListName,  setNewListName]  = useState('');
+  const [addListTo,   setAddListTo]   = useState(null);
+  const [newListName, setNewListName] = useState('');
 
   // ── Handlers ─────────────────────────────────────────────────────────────
 
@@ -66,33 +71,30 @@ export default function AdminDashboard() {
     setCreateMsg(null);
 
     try {
-      if (!SERVICE_KEY) throw new Error('VITE_SUPABASE_SERVICE_KEY is not set in Vercel environment variables.');
-
-      const res = await fetch(`${SUPABASE_URL}/auth/v1/admin/users`, {
-        method: 'POST',
-        headers: {
-          apikey: SERVICE_KEY,
-          Authorization: `Bearer ${SERVICE_KEY}`,
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ email: uEmail, password: uPass, email_confirm: true }),
-      });
-
-      const body = await res.json();
-      if (!res.ok) throw new Error(body.message || body.msg || `Error ${res.status}`);
+      const { data, error } = await signupClient.auth.signUp({ email: uEmail, password: uPass });
+      if (error) throw error;
+      if (!data.user) {
+        throw new Error(
+          'Account queued for email confirmation. To allow instant login, disable "Confirm email" in Supabase → Authentication → Settings.'
+        );
+      }
 
       const { error: profErr } = await supabase.from('profiles').insert({
-        id: body.id, name: uName, email: uEmail, role: uRole, avatar: '', status: 'Available',
+        id: data.user.id, name: uName, email: uEmail,
+        role: uRole, avatar: '', status: 'Available',
       });
       if (profErr) throw profErr;
 
       dispatch({
         type: 'ADD_MEMBER_LOCAL',
-        payload: { id: body.id, name: uName, email: uEmail, role: uRole, avatar: `https://i.pravatar.cc/150?u=${uEmail}`, status: 'Available' },
+        payload: {
+          id: data.user.id, name: uName, email: uEmail, role: uRole,
+          avatar: `https://i.pravatar.cc/150?u=${uEmail}`, status: 'Available',
+        },
       });
 
       setUName(''); setUEmail(''); setUPass('');
-      setCreateMsg({ ok: true, text: `${uName} created. They can log in now with their email and password.` });
+      setCreateMsg({ ok: true, text: `${uName} created. They can log in now.` });
     } catch (err) {
       setCreateMsg({ ok: false, text: err.message });
     } finally {
@@ -113,13 +115,13 @@ export default function AdminDashboard() {
   const handleCreateBrand = (e) => {
     e.preventDefault();
     if (!bName.trim()) return;
-    dispatch({ type: 'ADD_SPACE', payload: { id: `sp_${Date.now()}`, name: bName.trim(), color: bColor, icon: bIcon } });
+    dispatch({ type: 'ADD_SPACE', payload: { id: `sp_${crypto.randomUUID()}`, name: bName.trim(), color: bColor, icon: bIcon } });
     setBName(''); setBColor('#111111'); setBIcon('🚀');
   };
 
   const handleAddList = (spaceId) => {
     if (!newListName.trim()) return;
-    dispatch({ type: 'ADD_LIST', payload: { id: `l_${Date.now()}`, spaceId, name: newListName.trim() } });
+    dispatch({ type: 'ADD_LIST', payload: { id: `l_${crypto.randomUUID()}`, spaceId, name: newListName.trim() } });
     setNewListName(''); setAddListTo(null);
   };
 
@@ -163,7 +165,9 @@ export default function AdminDashboard() {
         </div>
         <div>
           <h1 style={{ fontSize: '26px', fontFamily: 'var(--font-display)', fontWeight: 700, lineHeight: 1.2 }}>Admin Panel</h1>
-          <p style={{ color: 'var(--color-text-muted)', fontSize: '13px', marginTop: '2px' }}>Manage team, brands, and workspace · logged in as {currentUser?.name}</p>
+          <p style={{ color: 'var(--color-text-muted)', fontSize: '13px', marginTop: '2px' }}>
+            Manage team, brands, and workspace · {currentUser?.name}
+          </p>
         </div>
       </div>
 
@@ -180,18 +184,15 @@ export default function AdminDashboard() {
       {tab === 'team' && (
         <div style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
 
-          {/* Create user */}
           <div style={card}>
             <h3 style={{ fontSize: '16px', fontWeight: 700, marginBottom: '20px', display: 'flex', alignItems: 'center', gap: '8px' }}>
               <Plus size={16} /> Create New Account
             </h3>
 
-            {!SERVICE_KEY && (
-              <div style={{ marginBottom: '16px', padding: '12px 16px', backgroundColor: 'rgba(255,152,0,0.1)', border: '1px solid rgba(255,152,0,0.35)', borderRadius: '8px', fontSize: '13px', color: '#b45000' }}>
-                ⚠ Add <strong>VITE_SUPABASE_SERVICE_KEY</strong> to your Vercel environment variables to enable account creation.
-                The value is your Supabase secret key (<code>sb_secret_…</code>).
-              </div>
-            )}
+            <div style={{ marginBottom: '16px', padding: '12px 16px', backgroundColor: 'rgba(33,150,243,0.08)', border: '1px solid rgba(33,150,243,0.25)', borderRadius: '8px', fontSize: '13px', color: '#1565c0', lineHeight: '1.5' }}>
+              ℹ Requires <strong>email confirmation disabled</strong> in your Supabase project:
+              Authentication → Settings → toggle off "Enable email confirmations".
+            </div>
 
             <form onSubmit={handleCreateUser} style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
               <div>
@@ -223,14 +224,13 @@ export default function AdminDashboard() {
               )}
 
               <div style={{ gridColumn: '1 / -1', display: 'flex', justifyContent: 'flex-end' }}>
-                <button type="submit" disabled={creating || !SERVICE_KEY} style={{ padding: '10px 24px', backgroundColor: '#111111', color: 'white', border: 'none', borderRadius: '8px', fontWeight: 700, fontSize: '14px', cursor: (creating || !SERVICE_KEY) ? 'not-allowed' : 'pointer', opacity: (creating || !SERVICE_KEY) ? 0.45 : 1 }}>
+                <button type="submit" disabled={creating} style={{ padding: '10px 24px', backgroundColor: '#111111', color: 'white', border: 'none', borderRadius: '8px', fontWeight: 700, fontSize: '14px', cursor: creating ? 'not-allowed' : 'pointer', opacity: creating ? 0.5 : 1 }}>
                   {creating ? 'Creating…' : 'Create Account'}
                 </button>
               </div>
             </form>
           </div>
 
-          {/* Members list */}
           <div style={card}>
             <h3 style={{ fontSize: '16px', fontWeight: 700, marginBottom: '16px', display: 'flex', alignItems: 'center', gap: '8px' }}>
               <Users size={16} /> Team Members ({state.members.length})
@@ -243,7 +243,10 @@ export default function AdminDashboard() {
                 <div key={m.id} style={{ display: 'flex', alignItems: 'center', gap: '12px', padding: '12px 16px', border: '1px solid var(--color-border)', borderRadius: '10px', backgroundColor: 'var(--color-bg)' }}>
                   <img src={m.avatar || `https://i.pravatar.cc/40?u=${m.email}`} alt={m.name} style={{ width: '36px', height: '36px', borderRadius: '50%', objectFit: 'cover', flexShrink: 0 }} />
                   <div style={{ flex: 1, minWidth: 0 }}>
-                    <div style={{ fontWeight: 600, fontSize: '14px' }}>{m.name}{m.id === currentUser?.id && <span style={{ fontSize: '11px', color: 'var(--color-text-muted)', marginLeft: '8px', fontWeight: 400 }}>you</span>}</div>
+                    <div style={{ fontWeight: 600, fontSize: '14px' }}>
+                      {m.name}
+                      {m.id === currentUser?.id && <span style={{ fontSize: '11px', color: 'var(--color-text-muted)', marginLeft: '8px', fontWeight: 400 }}>you</span>}
+                    </div>
                     <div style={{ fontSize: '12px', color: 'var(--color-text-muted)' }}>{m.email}</div>
                   </div>
 
@@ -287,9 +290,10 @@ export default function AdminDashboard() {
       {tab === 'brands' && (
         <div style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
 
-          {/* Create brand */}
           <div style={card}>
-            <h3 style={{ fontSize: '16px', fontWeight: 700, marginBottom: '20px', display: 'flex', alignItems: 'center', gap: '8px' }}><Plus size={16} /> Add New Brand</h3>
+            <h3 style={{ fontSize: '16px', fontWeight: 700, marginBottom: '20px', display: 'flex', alignItems: 'center', gap: '8px' }}>
+              <Plus size={16} /> Add New Brand
+            </h3>
             <form onSubmit={handleCreateBrand} style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
               <div>
                 <label style={lbl}>Brand Name</label>
@@ -316,7 +320,6 @@ export default function AdminDashboard() {
                 </div>
               </div>
 
-              {/* Preview */}
               <div style={{ display: 'flex', alignItems: 'center', gap: '10px', padding: '12px 16px', backgroundColor: 'var(--color-bg)', border: '1px solid var(--color-border)', borderRadius: '8px' }}>
                 <span style={{ fontSize: '20px' }}>{bIcon}</span>
                 <span style={{ fontWeight: 700, color: bColor, fontSize: '15px' }}>{bName || 'Brand Name Preview'}</span>
@@ -331,7 +334,6 @@ export default function AdminDashboard() {
             </form>
           </div>
 
-          {/* Brands list */}
           <div style={card}>
             <h3 style={{ fontSize: '16px', fontWeight: 700, marginBottom: '16px', display: 'flex', alignItems: 'center', gap: '8px' }}>
               <Building2 size={16} /> Brands ({state.spaces.length})
@@ -340,19 +342,16 @@ export default function AdminDashboard() {
               {state.spaces.length === 0 && <p style={{ fontSize: '13px', color: 'var(--color-text-muted)', fontStyle: 'italic' }}>No brands yet.</p>}
               {state.spaces.map(sp => {
                 const spLists = state.lists.filter(l => l.spaceId === sp.id);
-                const spTasks = tasks.filter(t => spLists.map(l => l.id).includes(t.listId));
+                const spTaskCount = tasks.filter(t => spLists.map(l => l.id).includes(t.listId)).length;
                 return (
                   <div key={sp.id} style={{ border: '1px solid var(--color-border)', borderRadius: '10px', overflow: 'hidden' }}>
                     <div style={{ display: 'flex', alignItems: 'center', gap: '12px', padding: '14px 16px', backgroundColor: 'var(--color-bg)' }}>
                       <span style={{ fontSize: '20px' }}>{sp.icon}</span>
                       <div style={{ flex: 1 }}>
                         <div style={{ fontWeight: 700, color: sp.color || 'var(--color-text)', fontSize: '15px' }}>{sp.name}</div>
-                        <div style={{ fontSize: '12px', color: 'var(--color-text-muted)' }}>{spLists.length} list{spLists.length !== 1 ? 's' : ''} · {spTasks.length} task{spTasks.length !== 1 ? 's' : ''}</div>
+                        <div style={{ fontSize: '12px', color: 'var(--color-text-muted)' }}>{spLists.length} list{spLists.length !== 1 ? 's' : ''} · {spTaskCount} task{spTaskCount !== 1 ? 's' : ''}</div>
                       </div>
-                      <button
-                        onClick={() => setAddListTo(addListTo === sp.id ? null : sp.id)}
-                        style={{ display: 'flex', alignItems: 'center', gap: '5px', padding: '6px 12px', backgroundColor: 'var(--color-surface)', border: '1px solid var(--color-border)', borderRadius: '7px', fontSize: '12px', fontWeight: 600, cursor: 'pointer', color: 'var(--color-text-muted)' }}
-                      >
+                      <button onClick={() => setAddListTo(addListTo === sp.id ? null : sp.id)} style={{ display: 'flex', alignItems: 'center', gap: '5px', padding: '6px 12px', backgroundColor: 'var(--color-surface)', border: '1px solid var(--color-border)', borderRadius: '7px', fontSize: '12px', fontWeight: 600, cursor: 'pointer', color: 'var(--color-text-muted)' }}>
                         <Plus size={13} /> Add List
                       </button>
                     </div>
@@ -381,12 +380,7 @@ export default function AdminDashboard() {
 
                     {addListTo === sp.id && (
                       <div style={{ padding: '0 16px 14px', display: 'flex', gap: '8px' }}>
-                        <input
-                          autoFocus
-                          value={newListName}
-                          onChange={e => setNewListName(e.target.value)}
-                          placeholder="List name (e.g. Q4 Campaigns)"
-                          style={{ flex: 1, padding: '8px 12px', border: '1px solid var(--color-border)', borderRadius: '7px', fontSize: '13px', background: 'var(--color-bg)', color: 'var(--color-text)', outline: 'none' }}
+                        <input autoFocus value={newListName} onChange={e => setNewListName(e.target.value)} placeholder="List name (e.g. Q4 Campaigns)" style={{ flex: 1, padding: '8px 12px', border: '1px solid var(--color-border)', borderRadius: '7px', fontSize: '13px', background: 'var(--color-bg)', color: 'var(--color-text)', outline: 'none' }}
                           onKeyDown={e => { if (e.key === 'Enter') handleAddList(sp.id); if (e.key === 'Escape') setAddListTo(null); }}
                         />
                         <button onClick={() => handleAddList(sp.id)} style={{ padding: '8px 14px', background: '#111111', color: 'white', border: 'none', borderRadius: '7px', fontWeight: 700, fontSize: '13px', cursor: 'pointer' }}>Add</button>
@@ -405,13 +399,12 @@ export default function AdminDashboard() {
       {tab === 'overview' && (
         <div style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
 
-          {/* Stats row */}
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '16px' }}>
             {[
-              { label: 'Total Tasks',  value: tasks.length,                color: 'var(--color-text)' },
-              { label: 'In Progress',  value: statusCounts['In Progress'],  color: '#2196f3' },
-              { label: 'Completed',    value: statusCounts['Done'],          color: '#4caf50' },
-              { label: 'Overdue',      value: overdue,                      color: '#b20f00' },
+              { label: 'Total Tasks',  value: tasks.length,               color: 'var(--color-text)' },
+              { label: 'In Progress',  value: statusCounts['In Progress'], color: '#2196f3' },
+              { label: 'Completed',    value: statusCounts['Done'],         color: '#4caf50' },
+              { label: 'Overdue',      value: overdue,                     color: '#b20f00' },
             ].map(({ label, value, color }) => (
               <div key={label} style={{ ...card, textAlign: 'center', padding: '20px' }}>
                 <div style={{ fontSize: '40px', fontWeight: 800, fontFamily: 'var(--font-display)', color, lineHeight: 1 }}>{value}</div>
@@ -420,39 +413,43 @@ export default function AdminDashboard() {
             ))}
           </div>
 
-          {/* Brand breakdown */}
           <div style={card}>
-            <h3 style={{ fontSize: '16px', fontWeight: 700, marginBottom: '20px', display: 'flex', alignItems: 'center', gap: '8px' }}><Building2 size={16} /> Tasks by Brand</h3>
-            {brandStats.length === 0 ? (
-              <p style={{ fontSize: '13px', color: 'var(--color-text-muted)', fontStyle: 'italic' }}>No brands yet.</p>
-            ) : brandStats.map(({ id, name, color, icon, count }) => (
-              <div key={id} style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '12px' }}>
-                <span style={{ fontSize: '18px', flexShrink: 0 }}>{icon}</span>
-                <span style={{ fontSize: '13px', fontWeight: 600, width: '130px', flexShrink: 0, color: color || 'var(--color-text)' }}>{name}</span>
-                <div style={{ flex: 1, backgroundColor: 'var(--color-bg)', borderRadius: '99px', height: '8px', overflow: 'hidden' }}>
-                  <div style={{ height: '100%', width: `${(count / maxBrand) * 100}%`, backgroundColor: color || '#111111', borderRadius: '99px', transition: 'width 0.4s ease', minWidth: count > 0 ? '4px' : '0' }} />
+            <h3 style={{ fontSize: '16px', fontWeight: 700, marginBottom: '20px', display: 'flex', alignItems: 'center', gap: '8px' }}>
+              <Building2 size={16} /> Tasks by Brand
+            </h3>
+            {brandStats.length === 0
+              ? <p style={{ fontSize: '13px', color: 'var(--color-text-muted)', fontStyle: 'italic' }}>No brands yet.</p>
+              : brandStats.map(({ id, name, color, icon, count }) => (
+                <div key={id} style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '12px' }}>
+                  <span style={{ fontSize: '18px', flexShrink: 0 }}>{icon}</span>
+                  <span style={{ fontSize: '13px', fontWeight: 600, width: '130px', flexShrink: 0, color: color || 'var(--color-text)' }}>{name}</span>
+                  <div style={{ flex: 1, backgroundColor: 'var(--color-bg)', borderRadius: '99px', height: '8px', overflow: 'hidden' }}>
+                    <div style={{ height: '100%', width: `${(count / maxBrand) * 100}%`, backgroundColor: color || '#111111', borderRadius: '99px', transition: 'width 0.4s ease', minWidth: count > 0 ? '4px' : '0' }} />
+                  </div>
+                  <span style={{ fontSize: '13px', fontWeight: 700, width: '28px', textAlign: 'right', flexShrink: 0 }}>{count}</span>
                 </div>
-                <span style={{ fontSize: '13px', fontWeight: 700, width: '28px', textAlign: 'right', flexShrink: 0 }}>{count}</span>
-              </div>
-            ))}
+              ))
+            }
           </div>
 
-          {/* Team workload */}
           <div style={card}>
-            <h3 style={{ fontSize: '16px', fontWeight: 700, marginBottom: '20px', display: 'flex', alignItems: 'center', gap: '8px' }}><Users size={16} /> Team Workload</h3>
-            {workload.length === 0 ? (
-              <p style={{ fontSize: '13px', color: 'var(--color-text-muted)', fontStyle: 'italic' }}>No executors or designers found.</p>
-            ) : workload.map(m => (
-              <div key={m.id} style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '10px' }}>
-                <img src={m.avatar || `https://i.pravatar.cc/40?u=${m.email}`} alt={m.name} style={{ width: '28px', height: '28px', borderRadius: '50%', flexShrink: 0 }} />
-                <span style={{ fontSize: '13px', fontWeight: 600, width: '120px', flexShrink: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{m.name}</span>
-                <span style={{ fontSize: '11px', color: 'var(--color-text-muted)', width: '110px', flexShrink: 0 }}>{m.role}</span>
-                <div style={{ flex: 1, backgroundColor: 'var(--color-bg)', borderRadius: '99px', height: '8px', overflow: 'hidden' }}>
-                  <div style={{ height: '100%', width: `${Math.min((m.active / 8) * 100, 100)}%`, backgroundColor: m.active > 5 ? '#e91e63' : '#2196f3', borderRadius: '99px', transition: 'width 0.4s ease', minWidth: m.active > 0 ? '4px' : '0' }} />
+            <h3 style={{ fontSize: '16px', fontWeight: 700, marginBottom: '20px', display: 'flex', alignItems: 'center', gap: '8px' }}>
+              <Users size={16} /> Team Workload
+            </h3>
+            {workload.length === 0
+              ? <p style={{ fontSize: '13px', color: 'var(--color-text-muted)', fontStyle: 'italic' }}>No executors or designers found.</p>
+              : workload.map(m => (
+                <div key={m.id} style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '10px' }}>
+                  <img src={m.avatar || `https://i.pravatar.cc/40?u=${m.email}`} alt={m.name} style={{ width: '28px', height: '28px', borderRadius: '50%', flexShrink: 0 }} />
+                  <span style={{ fontSize: '13px', fontWeight: 600, width: '120px', flexShrink: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{m.name}</span>
+                  <span style={{ fontSize: '11px', color: 'var(--color-text-muted)', width: '110px', flexShrink: 0 }}>{m.role}</span>
+                  <div style={{ flex: 1, backgroundColor: 'var(--color-bg)', borderRadius: '99px', height: '8px', overflow: 'hidden' }}>
+                    <div style={{ height: '100%', width: `${Math.min((m.active / 8) * 100, 100)}%`, backgroundColor: m.active > 5 ? '#e91e63' : '#2196f3', borderRadius: '99px', transition: 'width 0.4s ease', minWidth: m.active > 0 ? '4px' : '0' }} />
+                  </div>
+                  <span style={{ fontSize: '13px', fontWeight: 700, width: '64px', textAlign: 'right', flexShrink: 0, color: 'var(--color-text-muted)' }}>{m.active} active</span>
                 </div>
-                <span style={{ fontSize: '13px', fontWeight: 700, width: '64px', textAlign: 'right', flexShrink: 0, color: 'var(--color-text-muted)' }}>{m.active} active</span>
-              </div>
-            ))}
+              ))
+            }
           </div>
         </div>
       )}
