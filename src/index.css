@@ -1,0 +1,114 @@
+@import url('https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700;800;900&display=swap');
+
+:root {
+  --color-bg: #ffffff;
+  --color-surface: #f5f5f5;
+  --color-surface-2: #ebebeb;
+  --color-border: #e0e0e0;
+  --color-accent: #111111;
+  --color-accent-hover: #333333;
+  --color-text: #111111;
+  --color-text-muted: #666666;
+  --color-success: #2e7d32;
+  --color-warning: #e65100;
+  --color-info: #1565c0;
+
+  --font-display: "Mont Heavy", "Montserrat", sans-serif;
+  --font-body: "Mont Regular", "Montserrat", sans-serif;
+
+  --text-xs: 11px;
+  --text-sm: 13px;
+  --text-base: 15px;
+  --text-md: 17px;
+  --text-lg: 22px;
+  --text-xl: 28px;
+  --text-2xl: 36px;
+  --text-3xl: 48px;
+}
+
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+body {
+  font-family: var(--font-body);
+  background-color: var(--color-bg);
+  color: var(--color-text);
+  font-size: var(--text-base);
+  line-height: 1.5;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+h1, h2, h3, h4, h5, h6 {
+  font-family: var(--font-display);
+  font-weight: 800; /* Mont Heavy equivalent */
+}
+
+/* Scrollbar Styling */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background: #e8e8e8;
+}
+
+::-webkit-scrollbar-thumb {
+  background: var(--color-border);
+  border-radius: 3px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: var(--color-accent);
+}
+
+/* Global focus state */
+:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 2px #11111133;
+}
+
+/* Utility Classes */
+.elevation-1 {
+  background-color: var(--color-surface);
+  box-shadow: 0 4px 24px rgba(0,0,0,0.08);
+}
+
+.elevation-2 {
+  background-color: var(--color-surface-2);
+  box-shadow: 0 8px 32px rgba(0,0,0,0.12);
+}
+
+.glass-overlay {
+  background-color: rgba(0, 0, 0, 0.03);
+  backdrop-filter: blur(8px);
+}
+
+.border-subtle {
+  border: 1px solid var(--color-border);
+}
+
+.rounded-sm { border-radius: 6px; }
+.rounded-md { border-radius: 10px; }
+.rounded-lg { border-radius: 14px; }
+
+.transition-all {
+  transition: all 0.18s ease;
+}
+
+button {
+  font-family: var(--font-body);
+  cursor: pointer;
+  border: none;
+  background: none;
+  color: inherit;
+}
+
+input, textarea {
+  font-family: var(--font-body);
+  color: inherit;
+}

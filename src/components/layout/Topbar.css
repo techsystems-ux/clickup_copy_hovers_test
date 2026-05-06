@@ -1,0 +1,131 @@
+.topbar-left {
+  display: flex;
+  align-items: center;
+  gap: 32px;
+  height: 100%;
+}
+
+.breadcrumbs {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: var(--text-md);
+  font-weight: 700;
+  color: var(--color-text-muted);
+}
+
+.breadcrumb-item.active {
+  color: var(--color-text);
+}
+
+.breadcrumb-separator {
+  opacity: 0.5;
+}
+
+.view-tabs {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  height: 100%;
+}
+
+.view-tab {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 0 16px;
+  height: 100%;
+  color: var(--color-text-muted);
+  font-weight: 600;
+  font-size: var(--text-sm);
+  border-bottom: 2px solid transparent;
+}
+
+.view-tab:hover {
+  color: var(--color-text);
+  background-color: var(--color-surface-2);
+}
+
+.view-tab.active {
+  color: var(--color-accent);
+  border-bottom-color: var(--color-accent);
+}
+
+.topbar-right {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+
+.search-bar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background-color: var(--color-surface);
+  padding: 6px 12px;
+  border-radius: var(--rounded-md);
+  width: 200px;
+}
+
+.search-bar input {
+  background: none;
+  border: none;
+  outline: none;
+  width: 100%;
+  font-size: var(--text-sm);
+}
+
+.icon-btn {
+  padding: 8px;
+  border-radius: var(--rounded-md);
+  color: var(--color-text-muted);
+  position: relative;
+}
+
+.icon-btn:hover {
+  background-color: var(--color-surface-2);
+  color: var(--color-text);
+}
+
+.notification-badge {
+  position: absolute;
+  top: 4px;
+  right: 4px;
+  background-color: var(--color-accent);
+  color: white;
+  font-size: 10px;
+  font-weight: bold;
+  height: 16px;
+  width: 16px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.new-task-btn {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  background-color: var(--color-accent);
+  color: white;
+  font-weight: 600;
+  font-size: var(--text-sm);
+  padding: 8px 16px;
+  border-radius: var(--rounded-sm);
+  transition: all 0.2s ease;
+}
+
+.new-task-btn:hover {
+  background-color: var(--color-accent-hover);
+  transform: translateY(-1px);
+}
+
+.user-avatar img {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  border: 2px solid var(--color-border);
+  object-fit: cover;
+  cursor: pointer;
+}
