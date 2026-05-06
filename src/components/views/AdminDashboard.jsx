@@ -10,8 +10,8 @@ import { useUI } from '../../store/UIContext';
 
 // Secondary client with no session persistence — signUp won't override the admin's session
 const signupClient = createClient(
-  import.meta.env.VITE_SUPABASE_URL,
-  import.meta.env.VITE_SUPABASE_ANON_KEY,
+  import.meta.env.VITE_SUPABASE_URL     || 'https://pixgrkvanbxoceynyzoz.supabase.co',
+  import.meta.env.VITE_SUPABASE_ANON_KEY || 'sb_publishable_s-yQCIKFbpjzdzBB38-2XA_FK9HJ12P',
   { auth: { persistSession: false, autoRefreshToken: false, detectSessionInUrl: false } }
 );
 
