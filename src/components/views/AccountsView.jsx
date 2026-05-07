@@ -2,22 +2,7 @@ import React, { useState } from 'react';
 import { useStore } from '../../store/StoreContext';
 import { useUI } from '../../store/UIContext';
 import './AccountsView.css';
-import { Search, Mail, User } from 'lucide-react';
-import { Film, Image, PenLine, Target, FileText, HelpCircle } from 'lucide-react';
-
-const STATUS_COLOR = {
-  Available:       '#2e7d32',
-  Busy:            '#e65100',
-  'Do Not Disturb':'#b71c1c',
-  Away:            '#f9a825',
-};
-
-const ROLE_LABEL = {
-  'Admin':            { label: 'Admin',            bg: '#111111', color: '#ffffff' },
-  'Manager':          { label: 'Manager',          bg: '#333333', color: '#ffffff' },
-  'Executive':        { label: 'Executive',        bg: '#ebebeb', color: '#111111' },
-  'Graphic Designer': { label: 'Graphic Designer', bg: '#f5f5f5', color: '#555555' },
-};
+import { User, Plus, X, Globe, Briefcase, Film, Image, PenLine, Target, FileText, HelpCircle } from 'lucide-react';
 
 const TYPE_ICONS = {
   Static: Image, Video: Film, Design: PenLine,
@@ -33,181 +18,248 @@ const TYPE_COLORS = {
   Other:    { color: '#888888', bg: 'rgba(136,136,136,0.10)' },
 };
 
-// ─── Designer brand view ─────────────────────────────────────────────────────
-function DesignerAccountsView({ currentUser, state }) {
-  const myTasks = state.tasks.filter(t => t.assignees?.includes(currentUser.id));
+const TASK_TYPES = ['Static', 'Video', 'Design', 'Copy', 'Strategy', 'Other'];
 
-  const brandsWithTasks = state.spaces.map(space => {
-    const listIds = state.lists.filter(l => l.spaceId === space.id).map(l => l.id);
-    const tasks = myTasks.filter(t => listIds.includes(t.listId));
-    if (tasks.length === 0) return null;
+const ROLE_PILL = {
+  Manager:            { bg: '#2c2c2c',               color: '#ffffff' },
+  Executive:          { bg: 'rgba(33,150,243,0.15)', color: '#1565c0' },
+  'Graphic Designer': { bg: 'rgba(156,39,176,0.12)', color: '#7b1fa2' },
+  Admin:              { bg: '#111111',               color: '#ffffff' },
+};
 
-    const typeBreakdown = {};
-    tasks.forEach(t => { if (t.type) typeBreakdown[t.type] = (typeBreakdown[t.type] || 0) + 1; });
+// ── Brand card (shared) ─────────────────────────────────────────────────────
+function BrandCard({ space, state, currentUser, isManagerOrAdmin }) {
+  const lists = state.lists.filter(l => l.spaceId === space.id);
+  const listIds = lists.map(l => l.id);
+  const allTasksInBrand = state.tasks.filter(t => listIds.includes(t.listId));
 
-    const done = tasks.filter(t => t.status === 'Done').length;
-    const overdue = tasks.filter(t => t.dueDate && new Date(t.dueDate) < new Date() && t.status !== 'Done').length;
-    const pct = tasks.length > 0 ? Math.round((done / tasks.length) * 100) : 0;
-    return { space, tasks, typeBreakdown, done, overdue, pct };
-  }).filter(Boolean);
+  const myTasks = allTasksInBrand.filter(t => (t.assignees || []).includes(currentUser.id));
+  const tasksToShow = isManagerOrAdmin ? allTasksInBrand : myTasks;
+
+  const typeBreakdown = {};
+  tasksToShow.forEach(t => { if (t.type) typeBreakdown[t.type] = (typeBreakdown[t.type] || 0) + 1; });
+
+  const done    = tasksToShow.filter(t => t.status === 'Done').length;
+  const overdue = tasksToShow.filter(t => t.dueDate && new Date(t.dueDate) < new Date() && t.status !== 'Done').length;
+  const pct     = tasksToShow.length > 0 ? Math.round((done / tasksToShow.length) * 100) : 0;
+
+  const teamOnBrand = state.brandAssignments
+    .filter(b => b.spaceId === space.id)
+    .map(b => ({ ...b, member: state.members.find(m => m.id === b.profileId) }))
+    .filter(x => x.member);
 
   return (
-    <div className="accounts-view">
-      <div className="accounts-header">
-        <div>
-          <h2 className="accounts-title">My Brands</h2>
-          <p className="accounts-sub">{brandsWithTasks.length} brand{brandsWithTasks.length !== 1 ? 's' : ''} with active tasks</p>
+    <div style={{ backgroundColor: 'var(--color-surface)', border: '1px solid var(--color-border)', borderRadius: '14px', padding: '22px', display: 'flex', flexDirection: 'column', gap: '16px' }}>
+      <div style={{ display: 'flex', alignItems: 'flex-start', gap: '14px' }}>
+        <div style={{ width: '48px', height: '48px', backgroundColor: 'var(--color-surface-2)', borderRadius: '12px', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '24px', border: '1px solid var(--color-border)', flexShrink: 0 }}>
+          {space.icon}
+        </div>
+        <div style={{ flex: 1, minWidth: 0 }}>
+          <div style={{ fontSize: '16px', fontWeight: 700, marginBottom: '2px', color: space.color || 'var(--color-text)' }}>{space.name}</div>
+          {space.industry && <div style={{ display: 'inline-block', fontSize: '10px', fontWeight: 700, padding: '2px 8px', borderRadius: '99px', background: 'var(--color-surface-2)', color: 'var(--color-text-muted)', marginBottom: '4px' }}>{space.industry}</div>}
+          <div style={{ fontSize: '12px', color: 'var(--color-text-muted)' }}>
+            {tasksToShow.length} task{tasksToShow.length !== 1 ? 's' : ''} · {done} done
+            {overdue > 0 && <span style={{ color: '#b20f00', marginLeft: '6px', fontWeight: 700 }}>· {overdue} overdue</span>}
+          </div>
         </div>
       </div>
 
-      {brandsWithTasks.length === 0 ? (
-        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '12px', padding: '80px 20px', color: 'var(--color-text-muted)', fontSize: '14px' }}>
-          <User size={40} style={{ opacity: 0.2 }} />
-          <p>No brands assigned yet.</p>
+      {space.description && (
+        <p style={{ fontSize: '12px', color: 'var(--color-text-muted)', lineHeight: '1.5', margin: 0 }}>{space.description}</p>
+      )}
+
+      {space.website && (
+        <a href={space.website} target="_blank" rel="noreferrer" style={{ display: 'inline-flex', alignItems: 'center', gap: '5px', fontSize: '11px', color: 'var(--color-text-muted)', textDecoration: 'none' }}>
+          <Globe size={11} /> {space.website.replace(/^https?:\/\//, '').replace(/\/$/, '')}
+        </a>
+      )}
+
+      <div>
+        <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '11px', color: 'var(--color-text-muted)', marginBottom: '6px', fontWeight: 600 }}>
+          <span>Progress</span>
+          <span>{pct}% complete</span>
         </div>
-      ) : (
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(300px, 1fr))', gap: '16px', paddingBottom: '40px' }}>
-          {brandsWithTasks.map(({ space, tasks, typeBreakdown, done, overdue, pct }) => (
-            <div key={space.id} style={{ backgroundColor: 'var(--color-surface)', border: '1px solid var(--color-border)', borderRadius: '14px', padding: '22px', display: 'flex', flexDirection: 'column', gap: '16px' }}>
+        <div style={{ height: '6px', borderRadius: '99px', backgroundColor: 'var(--color-surface-2)', overflow: 'hidden' }}>
+          <div style={{ height: '100%', width: `${pct}%`, backgroundColor: pct === 100 ? '#4caf50' : '#111111', borderRadius: '99px', transition: 'width 0.4s' }} />
+        </div>
+      </div>
 
-              {/* Brand header */}
-              <div style={{ display: 'flex', alignItems: 'center', gap: '14px' }}>
-                <div style={{ width: '48px', height: '48px', backgroundColor: 'var(--color-surface-2)', borderRadius: '12px', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '24px', border: '1px solid var(--color-border)', flexShrink: 0 }}>
-                  {space.icon}
-                </div>
-                <div>
-                  <div style={{ fontSize: '16px', fontWeight: '700', marginBottom: '2px' }}>{space.name}</div>
-                  <div style={{ fontSize: '12px', color: 'var(--color-text-muted)' }}>
-                    {tasks.length} task{tasks.length !== 1 ? 's' : ''} · {done} done
-                    {overdue > 0 && <span style={{ color: '#b20f00', marginLeft: '6px', fontWeight: '700' }}>· {overdue} overdue</span>}
-                  </div>
-                </div>
-              </div>
+      {Object.keys(typeBreakdown).length > 0 && (
+        <div>
+          <div style={{ fontSize: '11px', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.6px', color: 'var(--color-text-muted)', marginBottom: '10px' }}>Task Types</div>
+          <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px' }}>
+            {Object.entries(typeBreakdown).map(([type, count]) => {
+              const TypeIcon = TYPE_ICONS[type] || HelpCircle;
+              const tc = TYPE_COLORS[type] || TYPE_COLORS.Other;
+              return (
+                <span key={type} style={{ display: 'inline-flex', alignItems: 'center', gap: '5px', fontSize: '12px', fontWeight: 700, padding: '4px 10px', borderRadius: '99px', color: tc.color, backgroundColor: tc.bg, border: `1px solid ${tc.color}33` }}>
+                  <TypeIcon size={11} />
+                  {type} <span style={{ opacity: 0.7 }}>× {count}</span>
+                </span>
+              );
+            })}
+          </div>
+        </div>
+      )}
 
-              {/* Progress bar */}
-              <div>
-                <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '11px', color: 'var(--color-text-muted)', marginBottom: '6px', fontWeight: '600' }}>
-                  <span>Progress</span>
-                  <span>{pct}% complete</span>
-                </div>
-                <div style={{ height: '6px', borderRadius: '99px', backgroundColor: 'var(--color-surface-2)', overflow: 'hidden' }}>
-                  <div style={{ height: '100%', width: `${pct}%`, backgroundColor: pct === 100 ? '#4caf50' : '#111111', borderRadius: '99px', transition: 'width 0.4s' }} />
-                </div>
-              </div>
+      {/* Team panel — managers/admins can sub-assign within this brand */}
+      {isManagerOrAdmin && (
+        <BrandTeamPanel space={space} teamOnBrand={teamOnBrand} state={state} currentUser={currentUser} />
+      )}
+    </div>
+  );
+}
 
-              {/* Task type breakdown */}
-              <div>
-                <div style={{ fontSize: '11px', fontWeight: '700', textTransform: 'uppercase', letterSpacing: '0.6px', color: 'var(--color-text-muted)', marginBottom: '10px' }}>Task Types</div>
-                <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px' }}>
-                  {Object.entries(typeBreakdown).map(([type, count]) => {
-                    const TypeIcon = TYPE_ICONS[type] || HelpCircle;
-                    const tc = TYPE_COLORS[type] || TYPE_COLORS.Other;
-                    return (
-                      <span key={type} style={{ display: 'inline-flex', alignItems: 'center', gap: '5px', fontSize: '12px', fontWeight: '700', padding: '4px 10px', borderRadius: '99px', color: tc.color, backgroundColor: tc.bg, border: `1px solid ${tc.color}33` }}>
-                        <TypeIcon size={11} />
-                        {type} <span style={{ opacity: 0.7 }}>× {count}</span>
-                      </span>
-                    );
-                  })}
-                </div>
+// ── Manager-only: sub-assign team to this brand ─────────────────────────────
+function BrandTeamPanel({ space, teamOnBrand, state, currentUser }) {
+  const { dispatch } = useStore();
+  const [adding, setAdding] = useState(false);
+  const [pickMember, setPickMember] = useState('');
+  const [pickType, setPickType] = useState('');
+
+  const candidateMembers = state.members.filter(m => m.role !== 'Admin' && m.id !== currentUser.id);
+
+  const handleAdd = () => {
+    if (!pickMember) return;
+    const exists = teamOnBrand.some(b => b.profileId === pickMember && (b.taskType || '') === (pickType || ''));
+    if (exists) { setAdding(false); setPickMember(''); setPickType(''); return; }
+    dispatch({
+      type: 'ASSIGN_BRAND',
+      payload: {
+        profileId:  pickMember,
+        spaceId:    space.id,
+        taskType:   pickType || null,
+        assignedBy: currentUser.id,
+      },
+    });
+    setAdding(false); setPickMember(''); setPickType('');
+  };
+
+  return (
+    <div style={{ paddingTop: '10px', borderTop: '1px dashed var(--color-border)' }}>
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '8px' }}>
+        <div style={{ fontSize: '11px', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.6px', color: 'var(--color-text-muted)' }}>
+          Team on This Brand
+        </div>
+        {!adding && (
+          <button onClick={() => setAdding(true)} style={{ display: 'inline-flex', alignItems: 'center', gap: '4px', padding: '3px 9px', borderRadius: '99px', border: '1px dashed var(--color-border)', background: 'transparent', cursor: 'pointer', color: 'var(--color-text-muted)', fontSize: '11px', fontWeight: 600 }}>
+            <Plus size={11} /> Assign
+          </button>
+        )}
+      </div>
+
+      {teamOnBrand.length === 0 && !adding && (
+        <p style={{ fontSize: '12px', color: 'var(--color-text-muted)', fontStyle: 'italic', margin: 0 }}>No team members on this brand yet.</p>
+      )}
+
+      <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+        {teamOnBrand.map(({ id, member, taskType }) => {
+          const rs = ROLE_PILL[member.role] || { bg: 'var(--color-surface-2)', color: 'var(--color-text-muted)' };
+          const tc = TYPE_COLORS[taskType] || null;
+          return (
+            <div key={id} style={{ display: 'flex', alignItems: 'center', gap: '10px', padding: '7px 10px', backgroundColor: 'var(--color-bg)', borderRadius: '8px', border: '1px solid var(--color-border)' }}>
+              <img src={member.avatar} alt={member.name} style={{ width: '24px', height: '24px', borderRadius: '50%', flexShrink: 0 }} />
+              <div style={{ flex: 1, minWidth: 0, display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
+                <span style={{ fontSize: '13px', fontWeight: 600 }}>{member.name}</span>
+                <span style={{ fontSize: '10px', fontWeight: 700, padding: '2px 8px', borderRadius: '99px', backgroundColor: rs.bg, color: rs.color }}>{member.role}</span>
+                {taskType && tc && (
+                  <span style={{ fontSize: '10px', fontWeight: 700, padding: '2px 8px', borderRadius: '99px', backgroundColor: tc.bg, color: tc.color }}>{taskType}</span>
+                )}
               </div>
+              <button onClick={() => dispatch({ type: 'UNASSIGN_BRAND', payload: { id } })} title="Remove" style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--color-text-muted)', padding: '3px', display: 'flex', alignItems: 'center', borderRadius: '50%' }}
+                onMouseEnter={e => e.currentTarget.style.color = '#b20f00'}
+                onMouseLeave={e => e.currentTarget.style.color = 'var(--color-text-muted)'}
+              ><X size={12} /></button>
             </div>
-          ))}
+          );
+        })}
+      </div>
+
+      {adding && (
+        <div style={{ display: 'flex', gap: '6px', marginTop: '8px', flexWrap: 'wrap' }}>
+          <select value={pickMember} onChange={e => setPickMember(e.target.value)} style={{ flex: '1 1 auto', minWidth: '140px', padding: '6px 10px', border: '1px solid var(--color-border)', borderRadius: '7px', fontSize: '12px', background: 'var(--color-surface)', color: 'var(--color-text)', outline: 'none' }}>
+            <option value="">Pick member…</option>
+            {candidateMembers.map(m => <option key={m.id} value={m.id}>{m.name} · {m.role}</option>)}
+          </select>
+          <select value={pickType} onChange={e => setPickType(e.target.value)} style={{ width: '110px', padding: '6px 10px', border: '1px solid var(--color-border)', borderRadius: '7px', fontSize: '12px', background: 'var(--color-surface)', color: 'var(--color-text)', outline: 'none' }}>
+            <option value="">All types</option>
+            {TASK_TYPES.map(t => <option key={t} value={t}>{t}</option>)}
+          </select>
+          <button onClick={handleAdd} disabled={!pickMember} style={{ padding: '6px 12px', background: '#111111', color: 'white', border: 'none', borderRadius: '7px', fontWeight: 700, fontSize: '12px', cursor: pickMember ? 'pointer' : 'not-allowed', opacity: pickMember ? 1 : 0.4 }}>Add</button>
+          <button onClick={() => { setAdding(false); setPickMember(''); setPickType(''); }} style={{ padding: '6px 8px', background: 'var(--color-surface-2)', color: 'var(--color-text-muted)', border: 'none', borderRadius: '7px', cursor: 'pointer', display: 'flex', alignItems: 'center' }}><X size={13} /></button>
         </div>
       )}
     </div>
   );
 }
 
-// ─── Manager member directory ────────────────────────────────────────────────
-function ManagerAccountsView({ state }) {
-  const [query, setQuery] = useState('');
-
-  const filtered = state.members.filter(m =>
-    m.name.toLowerCase().includes(query.toLowerCase()) ||
-    m.email.toLowerCase().includes(query.toLowerCase()) ||
-    m.role.toLowerCase().includes(query.toLowerCase())
-  );
-
-  return (
-    <div className="accounts-view">
-      <div className="accounts-header">
-        <div>
-          <h2 className="accounts-title">Accounts</h2>
-          <p className="accounts-sub">{state.members.length} members in your workspace</p>
-        </div>
-
-        <div className="accounts-search">
-          <Search size={15} />
-          <input
-            value={query}
-            onChange={e => setQuery(e.target.value)}
-            placeholder="Search members…"
-          />
-        </div>
-      </div>
-
-      <div className="accounts-table">
-        <div className="accounts-table-head">
-          <span className="col-member">Member</span>
-          <span className="col-role">Role</span>
-          <span className="col-status">Status</span>
-          <span className="col-email">Email</span>
-        </div>
-
-        {filtered.map(member => {
-          const roleStyle = ROLE_LABEL[member.role] || ROLE_LABEL.Member;
-          return (
-            <div key={member.id} className="accounts-row">
-              <div className="col-member">
-                <img src={member.avatar} alt={member.name} className="acc-avatar" />
-                <div>
-                  <div className="acc-name">{member.name}</div>
-                </div>
-              </div>
-
-              <div className="col-role">
-                <span
-                  className="acc-role-badge"
-                  style={{ background: roleStyle.bg, color: roleStyle.color }}
-                >
-                  {roleStyle.label}
-                </span>
-              </div>
-
-              <div className="col-status">
-                <span className="acc-status-dot" style={{ background: STATUS_COLOR[member.status] || '#aaa' }} />
-                <span className="acc-status-label">{member.status}</span>
-              </div>
-
-              <div className="col-email">
-                <Mail size={13} style={{ flexShrink: 0, color: 'var(--color-text-muted)' }} />
-                <span>{member.email}</span>
-              </div>
-            </div>
-          );
-        })}
-
-        {filtered.length === 0 && (
-          <div className="accounts-empty">
-            <User size={32} style={{ opacity: 0.25 }} />
-            <p>No members match "{query}"</p>
-          </div>
-        )}
-      </div>
-    </div>
-  );
-}
-
-// ─── Root export ─────────────────────────────────────────────────────────────
+// ── Root export ─────────────────────────────────────────────────────────────
 export default function AccountsView() {
   const { state } = useStore();
   const { currentUser } = useUI();
 
   if (!currentUser) return null;
 
-  const isManager = currentUser.role === 'Admin' || currentUser.role === 'Manager';
-  return isManager
-    ? <ManagerAccountsView state={state} />
-    : <DesignerAccountsView currentUser={currentUser} state={state} />;
+  const isAdmin   = currentUser.role === 'Admin';
+  const isManager = currentUser.role === 'Manager';
+  const isManagerOrAdmin = isAdmin || isManager;
+
+  // Brands assigned directly to this user (no role-in-brand filter)
+  const myAssignedSpaceIds = new Set(
+    state.brandAssignments.filter(b => b.profileId === currentUser.id).map(b => b.spaceId)
+  );
+
+  // Brands the user has tasks in (fallback for users without explicit assignment)
+  const taskBasedSpaceIds = new Set();
+  state.tasks
+    .filter(t => (t.assignees || []).includes(currentUser.id))
+    .forEach(t => {
+      const list = state.lists.find(l => l.id === t.listId);
+      if (list) taskBasedSpaceIds.add(list.spaceId);
+    });
+
+  // For Admin: show all brands. For others: assigned brands ∪ brands with their tasks
+  let visibleSpaces;
+  if (isAdmin) {
+    visibleSpaces = state.spaces;
+  } else {
+    visibleSpaces = state.spaces.filter(sp => myAssignedSpaceIds.has(sp.id) || taskBasedSpaceIds.has(sp.id));
+  }
+
+  return (
+    <div className="accounts-view">
+      <div className="accounts-header">
+        <div>
+          <h2 className="accounts-title">{isAdmin ? 'All Brands' : 'My Brands'}</h2>
+          <p className="accounts-sub">
+            {visibleSpaces.length} brand{visibleSpaces.length !== 1 ? 's' : ''}
+            {!isAdmin && ' assigned to you'}
+            {isManagerOrAdmin && ' · you can sub-assign team members per brand'}
+          </p>
+        </div>
+      </div>
+
+      {visibleSpaces.length === 0 ? (
+        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '12px', padding: '80px 20px', color: 'var(--color-text-muted)', fontSize: '14px', textAlign: 'center' }}>
+          {isManager ? <Briefcase size={40} style={{ opacity: 0.2 }} /> : <User size={40} style={{ opacity: 0.2 }} />}
+          <div>
+            <p style={{ margin: 0, fontWeight: 600 }}>No brands assigned yet.</p>
+            <p style={{ margin: '6px 0 0', fontSize: '12px' }}>Ask your admin to assign brands to your account.</p>
+          </div>
+        </div>
+      ) : (
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(320px, 1fr))', gap: '16px', paddingBottom: '40px' }}>
+          {visibleSpaces.map(space => (
+            <BrandCard
+              key={space.id}
+              space={space}
+              state={state}
+              currentUser={currentUser}
+              isManagerOrAdmin={isManagerOrAdmin}
+            />
+          ))}
+        </div>
+      )}
+    </div>
+  );
 }

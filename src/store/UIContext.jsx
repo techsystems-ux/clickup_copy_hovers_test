@@ -24,12 +24,16 @@ export function UIProvider({ children }) {
       .single();
     if (data) {
       setCurrentUser({
-        id:     data.id,
-        name:   data.name,
-        email:  data.email,
-        role:   data.role,
-        avatar: data.avatar || `https://i.pravatar.cc/150?u=${data.email}`,
-        status: data.status || 'Available',
+        id:       data.id,
+        name:     data.name,
+        email:    data.email,
+        role:     data.role,
+        avatar:   data.avatar || `https://i.pravatar.cc/150?u=${data.email}`,
+        status:   data.status   || 'Available',
+        bio:      data.bio      || '',
+        phone:    data.phone    || '',
+        title:    data.title    || '',
+        location: data.location || '',
       });
     }
     setAuthLoading(false);

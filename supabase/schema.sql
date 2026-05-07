@@ -1,6 +1,7 @@
 -- ══════════════════════════════════════════════════════
 --  Hovers Agency — Supabase Schema
 --  Run this entire file in the Supabase SQL Editor once.
+--  Re-running is safe: every statement is idempotent.
 -- ══════════════════════════════════════════════════════
 
 -- ── Profiles (one row per auth user) ─────────────────
@@ -14,6 +15,12 @@ create table if not exists profiles (
   created_at timestamptz default now()
 );
 
+-- Profile bio fields (added later — safe to run on existing tables)
+alter table profiles add column if not exists bio      text default '';
+alter table profiles add column if not exists phone    text default '';
+alter table profiles add column if not exists title    text default '';
+alter table profiles add column if not exists location text default '';
+
 -- ── Spaces (brands) ───────────────────────────────────
 create table if not exists spaces (
   id    text primary key,
@@ -21,6 +28,10 @@ create table if not exists spaces (
   color text,
   icon  text
 );
+
+alter table spaces add column if not exists description text default '';
+alter table spaces add column if not exists website     text default '';
+alter table spaces add column if not exists industry    text default '';
 
 -- ── Lists ─────────────────────────────────────────────
 create table if not exists lists (
@@ -60,6 +71,21 @@ create table if not exists comments (
   created_at    timestamptz default now()
 );
 
+-- ── Brand Assignments ─────────────────────────────────
+-- Links a user to a brand. Optional task_type (Static/Video/Design/Copy/Strategy/Other)
+-- lets a Manager sub-assign team members for specific work types within a brand.
+create table if not exists brand_assignments (
+  id           uuid primary key default gen_random_uuid(),
+  profile_id   uuid not null references profiles(id) on delete cascade,
+  space_id     text not null references spaces(id) on delete cascade,
+  task_type    text,
+  assigned_by  uuid references profiles(id),
+  created_at   timestamptz default now()
+);
+
+create unique index if not exists brand_assignments_unique
+  on brand_assignments (profile_id, space_id, coalesce(task_type, ''));
+
 -- ── Auto-update tasks.updated_at ──────────────────────
 create or replace function update_updated_at()
 returns trigger language plpgsql as $$
@@ -79,51 +105,47 @@ create trigger tasks_updated_at
 -- write policies are permissive for the demo.
 
 alter table profiles enable row level security;
+drop policy if exists "profiles: auth read"  on profiles;
+drop policy if exists "profiles: auth write" on profiles;
 create policy "profiles: auth read"   on profiles for select to authenticated using (true);
 create policy "profiles: auth write"  on profiles for all    to authenticated using (true) with check (true);
 
 alter table spaces enable row level security;
+drop policy if exists "spaces: auth read"  on spaces;
+drop policy if exists "spaces: auth write" on spaces;
 create policy "spaces: auth read"     on spaces   for select to authenticated using (true);
 create policy "spaces: auth write"    on spaces   for all    to authenticated using (true) with check (true);
 
 alter table lists enable row level security;
+drop policy if exists "lists: auth read"  on lists;
+drop policy if exists "lists: auth write" on lists;
 create policy "lists: auth read"      on lists    for select to authenticated using (true);
 create policy "lists: auth write"     on lists    for all    to authenticated using (true) with check (true);
 
 alter table tasks enable row level security;
+drop policy if exists "tasks: auth read"  on tasks;
+drop policy if exists "tasks: auth write" on tasks;
 create policy "tasks: auth read"      on tasks    for select to authenticated using (true);
 create policy "tasks: auth write"     on tasks    for all    to authenticated using (true) with check (true);
 
 alter table comments enable row level security;
+drop policy if exists "comments: auth read"  on comments;
+drop policy if exists "comments: auth write" on comments;
 create policy "comments: auth read"   on comments for select to authenticated using (true);
 create policy "comments: auth write"  on comments for all    to authenticated using (true) with check (true);
 
+alter table brand_assignments enable row level security;
+drop policy if exists "ba: auth read"  on brand_assignments;
+drop policy if exists "ba: auth write" on brand_assignments;
+create policy "ba: auth read"  on brand_assignments for select to authenticated using (true);
+create policy "ba: auth write" on brand_assignments for all    to authenticated using (true) with check (true);
+
 -- ── Enable Realtime ───────────────────────────────────
--- In the Supabase dashboard also go to:
--- Database → Replication → enable replication for tasks & comments
-alter table tasks    replica identity full;
-alter table comments replica identity full;
+alter table tasks             replica identity full;
+alter table comments          replica identity full;
+alter table brand_assignments replica identity full;
 
--- ── Auto-delete Done tasks after 4 days ─────────────
--- Supabase Pro: enable pg_cron in the dashboard, then run once:
---   select cron.schedule(
---     'purge-done-tasks',
---     '0 2 * * *',
---     $$delete from tasks where status = 'Done' and updated_at < now() - interval '4 days';$$
---   );
--- On the Free plan, the client-side check in StoreContext handles this on each login.
-
--- ── Seed: Spaces ─────────────────────────────────────
-insert into spaces (id, name, color, icon) values
-  ('sp1', 'Nova Brand',   '#111111', '🚀'),
-  ('sp2', 'Peak Retail',  '#e91e63', '🛍️'),
-  ('sp3', 'Bloom Studio', '#ff6900', '🌸')
-on conflict (id) do nothing;
-
--- ── Seed: Lists ───────────────────────────────────────
-insert into lists (id, space_id, name) values
-  ('l1', 'sp1', 'Q3 Social Campaign'),
-  ('l2', 'sp1', 'Print & OOH Materials'),
-  ('l3', 'sp2', 'Influencer Campaign'),
-  ('l4', 'sp3', 'Rebrand Project')
-on conflict (id) do nothing;
+-- After running this file, also run (one-time):
+--   alter publication supabase_realtime add table tasks;
+--   alter publication supabase_realtime add table comments;
+--   alter publication supabase_realtime add table brand_assignments;
