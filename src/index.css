@@ -1,29 +1,97 @@
-@import url('https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700;800;900&display=swap');
+/* ════════════════════════════════════════════════════════════════════
+   Hovers Agency — Theme tokens
+   Source of truth: design_tokens.md
+   ════════════════════════════════════════════════════════════════════ */
 
 :root {
-  --color-bg: #ffffff;
-  --color-surface: #f5f5f5;
-  --color-surface-2: #ebebeb;
-  --color-border: #e0e0e0;
-  --color-accent: #111111;
-  --color-accent-hover: #333333;
-  --color-text: #111111;
-  --color-text-muted: #666666;
-  --color-success: #2e7d32;
-  --color-warning: #e65100;
-  --color-info: #1565c0;
+  /* ── Core brand palette ──────────────────────────────────────────── */
+  --white:         #FFFFFF;
+  --off-white:     #FAFAFA;   /* surface-raised, hover bg */
+  --light-grey:    #F5F5F5;   /* surface-sunken, tag bg, stat fills */
+  --mid-grey:      #E8E8E8;   /* card borders, sidebar borders */
+  --border:        #E0E0E0;   /* input borders, subtle dividers */
+  --border-subtle: #EEEEEE;   /* very subtle borders */
 
-  --font-display: "Mont Heavy", "Montserrat", sans-serif;
-  --font-body: "Mont Regular", "Montserrat", sans-serif;
+  /* ── Text ladder ─────────────────────────────────────────────────── */
+  --text-primary:   #080808;  /* headings, primary text, active nav */
+  --text-secondary: #444444;  /* secondary text */
+  --text-tertiary:  #888888;  /* subtitles, placeholders, icon */
+  --text-muted:     #BBBBBB;  /* deep muted */
+  --text-dim:       #AAAAAA;  /* very dim labels */
+  --text-faint:     #CCCCCC;  /* timestamps, empty states */
 
-  --text-xs: 11px;
-  --text-sm: 13px;
-  --text-base: 15px;
-  --text-md: 17px;
-  --text-lg: 22px;
-  --text-xl: 28px;
-  --text-2xl: 36px;
-  --text-3xl: 48px;
+  /* ── Accent (Hovers brand red) ───────────────────────────────────── */
+  --accent:       #B20F00;
+  --accent-hover: #9A0D00;
+  --accent-5:     rgba(178, 15, 0, 0.05);
+  --accent-10:    rgba(178, 15, 0, 0.10);
+  --accent-15:    rgba(178, 15, 0, 0.15);
+  --accent-20:    rgba(178, 15, 0, 0.20);
+
+  /* ── Status semantics ────────────────────────────────────────────── */
+  --status-success: #10B981;  /* green dot, available */
+  --status-info:    #1565c0;  /* in progress */
+  --status-warn:    #e65100;  /* review, busy */
+  --status-error:   #b20f00;  /* blocked, overdue (= accent) */
+  --status-done:    #4caf50;  /* completed tasks */
+
+  /* ── Backwards-compat aliases (existing component vars) ──────────── */
+  --color-bg:           var(--white);
+  --color-surface:      var(--off-white);
+  --color-surface-2:    var(--light-grey);
+  --color-border:       var(--border);
+  --color-text:         var(--text-primary);
+  --color-text-muted:   var(--text-tertiary);
+  --color-accent:       var(--accent);
+  --color-accent-hover: var(--accent-hover);
+  --color-success:      var(--status-done);
+  --color-warning:      var(--status-warn);
+  --color-info:         var(--status-info);
+
+  /* ── Typography — system stack, no Google Fonts ──────────────────── */
+  --font-body:    -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  --font-display: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  --font-mono:    ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, monospace;
+
+  /* ── Font sizes (design_tokens.md scale) ─────────────────────────── */
+  --text-7:    7px;
+  --text-8:    8px;
+  --text-9:    9px;
+  --text-10:  10px;
+  --text-11:  11px;
+  --text-12:  12px;   /* xs */
+  --text-13:  13px;
+  --text-14:  14px;   /* sm */
+  --text-16:  16px;   /* base */
+  --text-18:  18px;   /* lg */
+  --text-20:  20px;   /* xl */
+  --text-24:  24px;   /* 2xl */
+
+  /* Backwards-compat size aliases */
+  --text-xs:   var(--text-12);
+  --text-sm:   var(--text-14);
+  --text-base: var(--text-14);
+  --text-md:   var(--text-16);
+  --text-lg:   var(--text-18);
+  --text-xl:   var(--text-20);
+  --text-2xl:  var(--text-24);
+  --text-3xl:  var(--text-24);
+
+  /* ── Font weights ────────────────────────────────────────────────── */
+  --w-medium:   500;
+  --w-semibold: 600;
+  --w-bold:     700;
+  --w-black:    900;
+
+  /* ── Radii ───────────────────────────────────────────────────────── */
+  --radius-sm: 6px;
+  --radius-md: 10px;
+  --radius-lg: 14px;
+
+  /* ── Elevations / overlay ────────────────────────────────────────── */
+  --shadow-1: 0 4px 24px rgba(0, 0, 0, 0.08);
+  --shadow-2: 0 8px 32px rgba(0, 0, 0, 0.12);
+  --overlay-scrim: rgba(0, 0, 0, 0.20);
 }
 
 * {
@@ -36,7 +104,7 @@ body {
   font-family: var(--font-body);
   background-color: var(--color-bg);
   color: var(--color-text);
-  font-size: var(--text-base);
+  font-size: var(--text-14);
   line-height: 1.5;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
@@ -44,61 +112,51 @@ body {
 
 h1, h2, h3, h4, h5, h6 {
   font-family: var(--font-display);
-  font-weight: 800; /* Mont Heavy equivalent */
+  font-weight: var(--w-black);
+  letter-spacing: -0.01em;
 }
 
-/* Scrollbar Styling */
+/* Scrollbar */
 ::-webkit-scrollbar {
   width: 6px;
   height: 6px;
 }
-
 ::-webkit-scrollbar-track {
-  background: #e8e8e8;
+  background: var(--mid-grey);
 }
-
 ::-webkit-scrollbar-thumb {
-  background: var(--color-border);
+  background: var(--border);
   border-radius: 3px;
 }
-
 ::-webkit-scrollbar-thumb:hover {
-  background: var(--color-accent);
+  background: var(--accent);
 }
 
-/* Global focus state */
 :focus-visible {
   outline: none;
-  box-shadow: 0 0 0 2px #11111133;
+  box-shadow: 0 0 0 2px var(--accent-15);
 }
 
-/* Utility Classes */
+/* Utilities */
 .elevation-1 {
   background-color: var(--color-surface);
-  box-shadow: 0 4px 24px rgba(0,0,0,0.08);
+  box-shadow: var(--shadow-1);
 }
-
 .elevation-2 {
   background-color: var(--color-surface-2);
-  box-shadow: 0 8px 32px rgba(0,0,0,0.12);
+  box-shadow: var(--shadow-2);
 }
-
 .glass-overlay {
   background-color: rgba(0, 0, 0, 0.03);
   backdrop-filter: blur(8px);
 }
-
 .border-subtle {
-  border: 1px solid var(--color-border);
+  border: 1px solid var(--border-subtle);
 }
-
-.rounded-sm { border-radius: 6px; }
-.rounded-md { border-radius: 10px; }
-.rounded-lg { border-radius: 14px; }
-
-.transition-all {
-  transition: all 0.18s ease;
-}
+.rounded-sm { border-radius: var(--radius-sm); }
+.rounded-md { border-radius: var(--radius-md); }
+.rounded-lg { border-radius: var(--radius-lg); }
+.transition-all { transition: all 0.18s ease; }
 
 button {
   font-family: var(--font-body);
@@ -108,7 +166,7 @@ button {
   color: inherit;
 }
 
-input, textarea {
+input, textarea, select {
   font-family: var(--font-body);
   color: inherit;
 }
