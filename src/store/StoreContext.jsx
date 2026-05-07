@@ -1,4 +1,4 @@
-import React, { createContext, useState, useContext, useEffect, useCallback } from 'react';
+import React, { createContext, useState, useContext, useEffect, useCallback, useRef } from 'react';
 import { supabase } from '../lib/supabase';
 import { STATUS_COLUMNS } from './MockData';
 
@@ -95,9 +95,12 @@ export function StoreProvider({ children }) {
     loading:          true,
   });
 
+  // Tracks in-flight local mutations so realtime events caused by our own
+  // writes don't trigger a redundant full re-fetch (fix for realtime loop).
+  const pendingMutations = useRef(0);
+
   // ── Load all data ──────────────────────────────────────────────────────────
   const fetchAll = useCallback(async () => {
-    // Purge Done tasks older than 4 days before loading
     const cutoff = new Date();
     cutoff.setDate(cutoff.getDate() - 4);
     await supabase
@@ -131,12 +134,15 @@ export function StoreProvider({ children }) {
     }));
   }, []);
 
+  // These are only called from realtime events originating from OTHER clients.
   const fetchTasks = useCallback(async () => {
+    if (pendingMutations.current > 0) return; // own write — skip
     const { data } = await supabase.from('tasks').select('*, comments(*)').order('created_at');
     setState(s => ({ ...s, tasks: (data || []).map(normalizeTask) }));
   }, []);
 
   const fetchBrandAssignments = useCallback(async () => {
+    if (pendingMutations.current > 0) return;
     const { data } = await supabase.from('brand_assignments').select('*');
     setState(s => ({ ...s, brandAssignments: (data || []).map(normalizeBrandAssignment) }));
   }, []);
@@ -154,7 +160,6 @@ export function StoreProvider({ children }) {
         .subscribe();
     };
 
-    // Wait for Supabase to restore the session before fetching (fixes RLS empty-state bug)
     supabase.auth.getSession().then(({ data: { session } }) => {
       if (session) { fetchAll(); setupRealtime(); }
       else setState(s => ({ ...s, loading: false }));
@@ -174,16 +179,36 @@ export function StoreProvider({ children }) {
     };
   }, [fetchAll, fetchTasks, fetchBrandAssignments]);
 
+  // ── Helpers for pending-mutation tracking ─────────────────────────────────
+  const withMutation = (fn) => {
+    pendingMutations.current++;
+    return Promise.resolve(fn()).finally(() => {
+      pendingMutations.current--;
+    });
+  };
+
   // ── Mutations ─────────────────────────────────────────────────────────────
-  const updateTaskStatus = async (taskId, newStatus) => {
+  const updateTaskStatus = (taskId, newStatus) => {
+    const prev = state.tasks.find(t => t.id === taskId)?.status;
     setState(s => ({
       ...s,
       tasks: s.tasks.map(t => t.id === taskId ? { ...t, status: newStatus } : t),
     }));
-    await supabase.from('tasks').update({ status: newStatus }).eq('id', taskId);
+    withMutation(() =>
+      supabase.from('tasks').update({ status: newStatus }).eq('id', taskId)
+    ).then(({ error } = {}) => {
+      if (error) {
+        console.error('updateTaskStatus:', error.message);
+        setState(s => ({
+          ...s,
+          tasks: s.tasks.map(t => t.id === taskId ? { ...t, status: prev } : t),
+        }));
+      }
+    });
   };
 
-  const updateTask = async (taskUpdates) => {
+  const updateTask = (taskUpdates) => {
+    const prev = state.tasks.find(t => t.id === taskUpdates.id);
     setState(s => ({
       ...s,
       tasks: s.tasks.map(t => t.id === taskUpdates.id ? { ...t, ...taskUpdates } : t),
@@ -198,7 +223,17 @@ export function StoreProvider({ children }) {
     if (rest.assignees   !== undefined) dbUpdates.assignees    = rest.assignees;
     if (rest.dueDate     !== undefined) dbUpdates.due_date     = rest.dueDate;
     if (rest.attachments !== undefined) dbUpdates.attachments  = rest.attachments;
-    await supabase.from('tasks').update(dbUpdates).eq('id', id);
+    withMutation(() =>
+      supabase.from('tasks').update(dbUpdates).eq('id', id)
+    ).then(({ error } = {}) => {
+      if (error && prev) {
+        console.error('updateTask:', error.message);
+        setState(s => ({
+          ...s,
+          tasks: s.tasks.map(t => t.id === id ? prev : t),
+        }));
+      }
+    });
   };
 
   // dispatch shim — keeps all existing call sites working unchanged
@@ -208,8 +243,13 @@ export function StoreProvider({ children }) {
       case 'ADD_TASK': {
         const task = action.payload;
         setState(s => ({ ...s, tasks: [...s.tasks, task] }));
-        supabase.from('tasks').insert(toDbTask(task)).then(({ error }) => {
-          if (error) console.error('ADD_TASK:', error.message);
+        withMutation(() =>
+          supabase.from('tasks').insert(toDbTask(task))
+        ).then(({ error } = {}) => {
+          if (error) {
+            console.error('ADD_TASK:', error.message);
+            setState(s => ({ ...s, tasks: s.tasks.filter(t => t.id !== task.id) }));
+          }
         });
         break;
       }
@@ -230,16 +270,28 @@ export function StoreProvider({ children }) {
             t.id === taskId ? { ...t, comments: [...(t.comments || []), comment] } : t
           ),
         }));
-        supabase.from('comments').insert({
-          id:            comment.id,
-          task_id:       taskId,
-          author_id:     comment.authorId,
-          author_name:   comment.authorName,
-          author_avatar: comment.authorAvatar,
-          text:          comment.text,
-          created_at:    comment.timestamp,
-        }).then(({ error }) => {
-          if (error) console.error('ADD_COMMENT:', error.message);
+        withMutation(() =>
+          supabase.from('comments').insert({
+            id:            comment.id,
+            task_id:       taskId,
+            author_id:     comment.authorId,
+            author_name:   comment.authorName,
+            author_avatar: comment.authorAvatar,
+            text:          comment.text,
+            created_at:    comment.timestamp,
+          })
+        ).then(({ error } = {}) => {
+          if (error) {
+            console.error('ADD_COMMENT:', error.message);
+            setState(s => ({
+              ...s,
+              tasks: s.tasks.map(t =>
+                t.id === taskId
+                  ? { ...t, comments: (t.comments || []).filter(c => c.id !== comment.id) }
+                  : t
+              ),
+            }));
+          }
         });
         break;
       }
@@ -247,15 +299,16 @@ export function StoreProvider({ children }) {
       case 'ADD_MEMBER': {
         const m = action.payload;
         setState(s => ({ ...s, members: [...s.members, m] }));
-        supabase.from('profiles').insert({
-          id:     m.id,
-          name:   m.name,
-          email:  m.email,
-          role:   m.role,
-          avatar: m.avatar,
-          status: m.status || 'Available',
-        }).then(({ error }) => {
-          if (error) console.error('ADD_MEMBER:', error.message);
+        withMutation(() =>
+          supabase.from('profiles').insert({
+            id: m.id, name: m.name, email: m.email,
+            role: m.role, avatar: m.avatar, status: m.status || 'Available',
+          })
+        ).then(({ error } = {}) => {
+          if (error) {
+            console.error('ADD_MEMBER:', error.message);
+            setState(s => ({ ...s, members: s.members.filter(x => x.id !== m.id) }));
+          }
         });
         break;
       }
@@ -267,77 +320,126 @@ export function StoreProvider({ children }) {
 
       case 'UPDATE_MEMBER_ROLE': {
         const { memberId, role } = action.payload;
+        const prev = state.members.find(m => m.id === memberId)?.role;
         setState(s => ({ ...s, members: s.members.map(m => m.id === memberId ? { ...m, role } : m) }));
-        supabase.from('profiles').update({ role }).eq('id', memberId)
-          .then(({ error }) => { if (error) console.error('UPDATE_MEMBER_ROLE:', error.message); });
+        withMutation(() =>
+          supabase.from('profiles').update({ role }).eq('id', memberId)
+        ).then(({ error } = {}) => {
+          if (error && prev) {
+            console.error('UPDATE_MEMBER_ROLE:', error.message);
+            setState(s => ({ ...s, members: s.members.map(m => m.id === memberId ? { ...m, role: prev } : m) }));
+          }
+        });
         break;
       }
 
       case 'UPDATE_PROFILE': {
         const { profileId, updates } = action.payload;
         setState(s => ({ ...s, members: s.members.map(m => m.id === profileId ? { ...m, ...updates } : m) }));
-        supabase.from('profiles').update(updates).eq('id', profileId)
-          .then(({ error }) => { if (error) console.error('UPDATE_PROFILE:', error.message); });
+        withMutation(() =>
+          supabase.from('profiles').update(updates).eq('id', profileId)
+        ).then(({ error } = {}) => {
+          if (error) console.error('UPDATE_PROFILE:', error.message);
+        });
         break;
       }
 
       case 'DELETE_MEMBER': {
         const { memberId } = action.payload;
+        const prev = state.members.find(m => m.id === memberId);
         setState(s => ({ ...s, members: s.members.filter(m => m.id !== memberId) }));
-        supabase.from('profiles').delete().eq('id', memberId)
-          .then(({ error }) => { if (error) console.error('DELETE_MEMBER:', error.message); });
+        withMutation(() =>
+          supabase.from('profiles').delete().eq('id', memberId)
+        ).then(({ error } = {}) => {
+          if (error && prev) {
+            console.error('DELETE_MEMBER:', error.message);
+            setState(s => ({ ...s, members: [...s.members, prev] }));
+          }
+        });
         break;
       }
 
       case 'ADD_SPACE': {
         const sp = action.payload;
         setState(s => ({ ...s, spaces: [...s.spaces, sp] }));
-        supabase.from('spaces').insert({
-          id:          sp.id,
-          name:        sp.name,
-          color:       sp.color,
-          icon:        sp.icon,
-          description: sp.description || '',
-          website:     sp.website     || '',
-          industry:    sp.industry    || '',
-        }).then(({ error }) => { if (error) console.error('ADD_SPACE:', error.message); });
+        withMutation(() =>
+          supabase.from('spaces').insert({
+            id: sp.id, name: sp.name, color: sp.color, icon: sp.icon,
+            description: sp.description || '', website: sp.website || '', industry: sp.industry || '',
+          })
+        ).then(({ error } = {}) => {
+          if (error) {
+            console.error('ADD_SPACE:', error.message);
+            setState(s => ({ ...s, spaces: s.spaces.filter(x => x.id !== sp.id) }));
+          }
+        });
         break;
       }
 
       case 'UPDATE_SPACE': {
         const { spaceId, updates } = action.payload;
         setState(s => ({ ...s, spaces: s.spaces.map(sp => sp.id === spaceId ? { ...sp, ...updates } : sp) }));
-        supabase.from('spaces').update(updates).eq('id', spaceId)
-          .then(({ error }) => { if (error) console.error('UPDATE_SPACE:', error.message); });
+        withMutation(() =>
+          supabase.from('spaces').update(updates).eq('id', spaceId)
+        ).then(({ error } = {}) => {
+          if (error) console.error('UPDATE_SPACE:', error.message);
+        });
         break;
       }
 
       case 'DELETE_SPACE': {
         const { spaceId } = action.payload;
+        const prevSpaces = state.spaces.filter(sp => sp.id === spaceId);
+        const prevLists  = state.lists.filter(l => l.spaceId === spaceId);
+        const prevBAs    = state.brandAssignments.filter(b => b.spaceId === spaceId);
         setState(s => ({
           ...s,
           spaces:           s.spaces.filter(sp => sp.id !== spaceId),
           lists:            s.lists.filter(l => l.spaceId !== spaceId),
           brandAssignments: s.brandAssignments.filter(b => b.spaceId !== spaceId),
         }));
-        supabase.from('spaces').delete().eq('id', spaceId)
-          .then(({ error }) => { if (error) console.error('DELETE_SPACE:', error.message); });
+        withMutation(() =>
+          supabase.from('spaces').delete().eq('id', spaceId)
+        ).then(({ error } = {}) => {
+          if (error) {
+            console.error('DELETE_SPACE:', error.message);
+            setState(s => ({
+              ...s,
+              spaces:           [...s.spaces, ...prevSpaces],
+              lists:            [...s.lists, ...prevLists],
+              brandAssignments: [...s.brandAssignments, ...prevBAs],
+            }));
+          }
+        });
         break;
       }
 
       case 'ADD_LIST': {
         const li = action.payload;
         setState(s => ({ ...s, lists: [...s.lists, li] }));
-        supabase.from('lists').insert({ id: li.id, space_id: li.spaceId, name: li.name })
-          .then(({ error }) => { if (error) console.error('ADD_LIST:', error.message); });
+        withMutation(() =>
+          supabase.from('lists').insert({ id: li.id, space_id: li.spaceId, name: li.name })
+        ).then(({ error } = {}) => {
+          if (error) {
+            console.error('ADD_LIST:', error.message);
+            setState(s => ({ ...s, lists: s.lists.filter(l => l.id !== li.id) }));
+          }
+        });
         break;
       }
 
       case 'DELETE_LIST': {
         const { listId } = action.payload;
+        const prev = state.lists.find(l => l.id === listId);
         setState(s => ({ ...s, lists: s.lists.filter(l => l.id !== listId) }));
-        supabase.from('lists').delete().eq('id', listId)
-          .then(({ error }) => { if (error) console.error('DELETE_LIST:', error.message); });
+        withMutation(() =>
+          supabase.from('lists').delete().eq('id', listId)
+        ).then(({ error } = {}) => {
+          if (error && prev) {
+            console.error('DELETE_LIST:', error.message);
+            setState(s => ({ ...s, lists: [...s.lists, prev] }));
+          }
+        });
         break;
       }
 
@@ -346,30 +448,39 @@ export function StoreProvider({ children }) {
         const tempId = `tmp_${crypto.randomUUID()}`;
         const local = { id: tempId, profileId, spaceId, taskType: taskType || null, assignedBy };
         setState(s => ({ ...s, brandAssignments: [...s.brandAssignments, local] }));
-        supabase.from('brand_assignments').insert({
-          profile_id:  profileId,
-          space_id:    spaceId,
-          task_type:   taskType || null,
-          assigned_by: assignedBy || null,
-        }).select().single().then(({ data, error }) => {
+        withMutation(() =>
+          supabase.from('brand_assignments').insert({
+            profile_id: profileId, space_id: spaceId,
+            task_type: taskType || null, assigned_by: assignedBy || null,
+          }).select().single()
+        ).then(({ data, error } = {}) => {
           if (error) {
             console.error('ASSIGN_BRAND:', error.message);
             setState(s => ({ ...s, brandAssignments: s.brandAssignments.filter(b => b.id !== tempId) }));
             return;
           }
-          setState(s => ({
-            ...s,
-            brandAssignments: s.brandAssignments.map(b => b.id === tempId ? normalizeBrandAssignment(data) : b),
-          }));
+          if (data) {
+            setState(s => ({
+              ...s,
+              brandAssignments: s.brandAssignments.map(b => b.id === tempId ? normalizeBrandAssignment(data) : b),
+            }));
+          }
         });
         break;
       }
 
       case 'UNASSIGN_BRAND': {
         const { id } = action.payload;
+        const prev = state.brandAssignments.find(b => b.id === id);
         setState(s => ({ ...s, brandAssignments: s.brandAssignments.filter(b => b.id !== id) }));
-        supabase.from('brand_assignments').delete().eq('id', id)
-          .then(({ error }) => { if (error) console.error('UNASSIGN_BRAND:', error.message); });
+        withMutation(() =>
+          supabase.from('brand_assignments').delete().eq('id', id)
+        ).then(({ error } = {}) => {
+          if (error && prev) {
+            console.error('UNASSIGN_BRAND:', error.message);
+            setState(s => ({ ...s, brandAssignments: [...s.brandAssignments, prev] }));
+          }
+        });
         break;
       }
 
