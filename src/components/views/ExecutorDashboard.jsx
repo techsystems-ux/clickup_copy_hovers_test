@@ -516,22 +516,51 @@ export default function ExecutorDashboard() {
         <p className="exec-dash-sub">Click a brand to view your assigned tasks.</p>
       </div>
 
-      {tasksBySpace.length === 0 ? (
+      {tasksBySpace.length === 0 && myTasks.length === 0 ? (
         <div className="empty-state" style={{ marginTop: '60px' }}>
           <CheckCircle2 size={56} className="empty-icon" />
           <p>You have no tasks assigned. Enjoy the peace! 🎉</p>
         </div>
       ) : (
-        <div className="brands-grid">
-          {tasksBySpace.map(({ space, tasks }) => (
-            <BrandCard
-              key={space.id}
-              space={space}
-              tasks={tasks}
-              onClick={() => setActiveBrandId(space.id)}
-            />
-          ))}
-        </div>
+        <>
+          {tasksBySpace.length > 0 && (
+            <div className="brands-grid">
+              {tasksBySpace.map(({ space, tasks }) => (
+                <BrandCard
+                  key={space.id}
+                  space={space}
+                  tasks={tasks}
+                  onClick={() => setActiveBrandId(space.id)}
+                />
+              ))}
+            </div>
+          )}
+
+          {/* Flat task list — always visible so tasks are always openable */}
+          {myTasks.length > 0 && (
+            <div style={{ marginTop: '32px' }}>
+              <h3 style={{ fontSize: '14px', fontWeight: 700, marginBottom: '12px', color: 'var(--color-text-muted)', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
+                All Tasks ({myTasks.length})
+              </h3>
+              <div className="task-list">
+                {[...myTasks]
+                  .sort((a, b) => {
+                    const order = { Urgent: 0, High: 1, Normal: 2, Low: 3 };
+                    return (order[a.priority] ?? 3) - (order[b.priority] ?? 3);
+                  })
+                  .map(task => (
+                    <TaskCard
+                      key={task.id}
+                      task={task}
+                      currentUser={currentUser}
+                      onMarkDone={handleMarkDone}
+                      onAddComment={handleAddComment}
+                    />
+                  ))}
+              </div>
+            </div>
+          )}
+        </>
       )}
     </div>
   );
