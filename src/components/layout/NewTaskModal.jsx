@@ -1,5 +1,5 @@
-import React, { useState } from 'react';
-import { X, Flag, Film, Image, PenLine, Target, FileText, HelpCircle, Link, Plus, Trash2 } from 'lucide-react';
+import React, { useState, useMemo } from 'react';
+import { X, Flag, Film, Image, PenLine, Target, FileText, HelpCircle, Link, Plus, Trash2, Building2 } from 'lucide-react';
 import { useStore } from '../../store/StoreContext';
 import { useUI } from '../../store/UIContext';
 import { TASK_TYPES } from '../../store/MockData';
@@ -44,9 +44,42 @@ export default function NewTaskModal() {
 
   const removeAttachment = (id) => setAttachments(prev => prev.filter(a => a.id !== id));
 
-  // ─────────────────────────────────────────────────────────────────────────
+  // ── Brand + List selection ──────────────────────────────────────────────
+  // Restrict to brands the user has access to. Admin & Team Lead see all;
+  // Executive only sees brands assigned to them or where they have tasks.
+  const availableBrands = useMemo(() => {
+    if (currentUser?.role === 'Admin' || currentUser?.role === 'Team Lead') return state.spaces;
+    const assignedIds = new Set(
+      state.brandAssignments.filter(b => b.profileId === currentUser?.id).map(b => b.spaceId)
+    );
+    const taskIds = new Set();
+    state.tasks
+      .filter(t => t.assignedBy === currentUser?.id || (t.assignees || []).includes(currentUser?.id))
+      .forEach(t => {
+        const list = state.lists.find(l => l.id === t.listId);
+        if (list) taskIds.add(list.spaceId);
+      });
+    return state.spaces.filter(sp => assignedIds.has(sp.id) || taskIds.has(sp.id));
+  }, [state.spaces, state.brandAssignments, state.tasks, state.lists, currentUser]);
 
-  const defaultList = activeListId || state.lists.find(l => l.spaceId === activeSpaceId)?.id || state.lists[0]?.id;
+  const initialBrand = activeSpaceId && availableBrands.some(sp => sp.id === activeSpaceId)
+    ? activeSpaceId
+    : (availableBrands[0]?.id || '');
+
+  const [selectedBrand, setSelectedBrand] = useState(initialBrand);
+
+  const listsInBrand = state.lists.filter(l => l.spaceId === selectedBrand);
+  const initialList = activeListId && listsInBrand.some(l => l.id === activeListId)
+    ? activeListId
+    : (listsInBrand[0]?.id || '');
+
+  const [selectedList, setSelectedList] = useState(initialList);
+
+  const handleBrandChange = (newBrandId) => {
+    setSelectedBrand(newBrandId);
+    const firstList = state.lists.find(l => l.spaceId === newBrandId);
+    setSelectedList(firstList?.id || '');
+  };
 
   const toggleAssignee = (userId) => {
     setAssignees(p => p.includes(userId) ? p.filter(id => id !== userId) : [...p, userId]);
@@ -60,12 +93,13 @@ export default function NewTaskModal() {
   const handleSubmit = (e) => {
     e.preventDefault();
     if (!title.trim()) return;
+    if (!selectedList) return;
 
     dispatch({
       type: 'ADD_TASK',
       payload: {
         id:           `t_${crypto.randomUUID()}`,
-        listId:       defaultList,
+        listId:       selectedList,
         title:        title.trim(),
         description:  description.trim(),
         status:       'To Do',
@@ -134,6 +168,48 @@ export default function NewTaskModal() {
               onChange={e => setDescription(e.target.value)}
               style={{ ...inputStyle, height: '72px', resize: 'none', lineHeight: '1.5' }}
             />
+          </div>
+
+          {/* Brand + List */}
+          <div style={{ display: 'flex', gap: '14px' }}>
+            <div style={{ flex: 1 }}>
+              <label style={labelStyle}><Building2 size={10} style={{ display: 'inline', marginRight: '4px' }} />Brand</label>
+              {availableBrands.length === 0 ? (
+                <div style={{ ...inputStyle, fontSize: '12px', color: 'var(--color-text-muted)', fontStyle: 'italic' }}>
+                  No brands available — ask admin/team lead to assign one to you.
+                </div>
+              ) : (
+                <select
+                  value={selectedBrand}
+                  onChange={e => handleBrandChange(e.target.value)}
+                  style={{ ...inputStyle, cursor: 'pointer' }}
+                  required
+                >
+                  {availableBrands.map(sp => (
+                    <option key={sp.id} value={sp.id}>{sp.icon} {sp.name}</option>
+                  ))}
+                </select>
+              )}
+            </div>
+            <div style={{ flex: 1 }}>
+              <label style={labelStyle}>List</label>
+              {listsInBrand.length === 0 ? (
+                <div style={{ ...inputStyle, fontSize: '12px', color: 'var(--color-text-muted)', fontStyle: 'italic' }}>
+                  No lists in this brand yet.
+                </div>
+              ) : (
+                <select
+                  value={selectedList}
+                  onChange={e => setSelectedList(e.target.value)}
+                  style={{ ...inputStyle, cursor: 'pointer' }}
+                  required
+                >
+                  {listsInBrand.map(l => (
+                    <option key={l.id} value={l.id}>{l.name}</option>
+                  ))}
+                </select>
+              )}
+            </div>
           </div>
 
           {/* Task Type */}
@@ -273,8 +349,8 @@ export default function NewTaskModal() {
             </button>
             <button
               type="submit"
-              disabled={!title.trim()}
-              style={{ padding: '10px 24px', borderRadius: '8px', backgroundColor: '#111111', color: 'white', border: 'none', fontWeight: 700, cursor: title.trim() ? 'pointer' : 'not-allowed', opacity: title.trim() ? 1 : 0.45, fontSize: '14px' }}
+              disabled={!title.trim() || !selectedList}
+              style={{ padding: '10px 24px', borderRadius: '8px', backgroundColor: '#111111', color: 'white', border: 'none', fontWeight: 700, cursor: (title.trim() && selectedList) ? 'pointer' : 'not-allowed', opacity: (title.trim() && selectedList) ? 1 : 0.45, fontSize: '14px' }}
             >
               Assign Task
             </button>

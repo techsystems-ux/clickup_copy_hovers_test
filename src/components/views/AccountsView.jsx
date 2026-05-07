@@ -27,12 +27,113 @@ const ROLE_PILL = {
   Admin:                { bg: '#111111',               color: '#ffffff' },
 };
 
+const PRESET_COLORS = ['#111111','#e91e63','#ff6900','#2196f3','#4caf50','#ff9800','#9c27b0','#00bcd4','#f44336','#607d8b'];
+const PRESET_ICONS  = ['🚀','🛍️','🌸','⚡','🎯','💎','🎨','📱','🏆','🌟','🎬','📦'];
+
+// ── Inline brand creation form (for Admin + Team Lead) ──────────────────────
+function NewBrandForm({ onClose, currentUser }) {
+  const { dispatch } = useStore();
+  const [name,        setName]        = useState('');
+  const [color,       setColor]       = useState('#111111');
+  const [icon,        setIcon]        = useState('🚀');
+  const [description, setDescription] = useState('');
+  const [website,     setWebsite]     = useState('');
+  const [industry,    setIndustry]    = useState('');
+
+  const handleSubmit = (e) => {
+    e.preventDefault();
+    if (!name.trim()) return;
+    const spaceId = `sp_${crypto.randomUUID()}`;
+    dispatch({
+      type: 'ADD_SPACE',
+      payload: {
+        id: spaceId, name: name.trim(), color, icon,
+        description: description.trim(), website: website.trim(), industry: industry.trim(),
+      },
+    });
+    // Auto-assign the creator so the brand shows up in their My Brands list immediately
+    dispatch({
+      type: 'ASSIGN_BRAND',
+      payload: { profileId: currentUser.id, spaceId, taskType: null, assignedBy: currentUser.id },
+    });
+    onClose();
+  };
+
+  const inp = { width: '100%', padding: '9px 12px', background: 'var(--color-bg)', border: '1px solid var(--color-border)', borderRadius: '7px', color: 'var(--color-text)', outline: 'none', fontSize: '13px', boxSizing: 'border-box' };
+  const lbl = { display: 'block', fontSize: '10px', fontWeight: 700, color: 'var(--color-text-muted)', marginBottom: '5px', textTransform: 'uppercase', letterSpacing: '0.5px' };
+
+  return (
+    <form onSubmit={handleSubmit} style={{ marginBottom: '20px', padding: '20px', backgroundColor: 'var(--color-surface)', border: '1px solid var(--color-border)', borderRadius: '12px', display: 'flex', flexDirection: 'column', gap: '14px' }}>
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+        <h3 style={{ fontSize: '14px', fontWeight: 700, display: 'flex', alignItems: 'center', gap: '7px' }}>
+          <Plus size={15} /> New Brand
+        </h3>
+        <button type="button" onClick={onClose} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--color-text-muted)', padding: '4px', display: 'flex' }}>
+          <X size={16} />
+        </button>
+      </div>
+
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
+        <div>
+          <label style={lbl}>Brand Name *</label>
+          <input style={inp} value={name} onChange={e => setName(e.target.value)} placeholder="e.g. Apex Sport" required autoFocus />
+        </div>
+        <div>
+          <label style={lbl}>Industry</label>
+          <input style={inp} value={industry} onChange={e => setIndustry(e.target.value)} placeholder="Fashion, FMCG, SaaS" />
+        </div>
+      </div>
+
+      <div>
+        <label style={lbl}>Website</label>
+        <input style={inp} type="url" value={website} onChange={e => setWebsite(e.target.value)} placeholder="https://…" />
+      </div>
+
+      <div>
+        <label style={lbl}>Description</label>
+        <textarea style={{ ...inp, fontFamily: 'inherit', resize: 'vertical', minHeight: '60px' }} value={description} onChange={e => setDescription(e.target.value)} placeholder="Short note about this brand…" />
+      </div>
+
+      <div style={{ display: 'flex', gap: '24px', flexWrap: 'wrap' }}>
+        <div>
+          <label style={lbl}>Color</label>
+          <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap' }}>
+            {PRESET_COLORS.map(c => (
+              <div key={c} onClick={() => setColor(c)} style={{ width: '22px', height: '22px', borderRadius: '50%', backgroundColor: c, cursor: 'pointer', border: color === c ? '2px solid white' : '2px solid transparent', outline: color === c ? `2px solid ${c}` : 'none' }} />
+            ))}
+          </div>
+        </div>
+        <div>
+          <label style={lbl}>Icon</label>
+          <div style={{ display: 'flex', gap: '4px', flexWrap: 'wrap' }}>
+            {PRESET_ICONS.map(i => (
+              <button key={i} type="button" onClick={() => setIcon(i)} style={{ fontSize: '16px', background: icon === i ? 'var(--color-surface-2)' : 'none', border: icon === i ? '2px solid var(--color-border)' : '2px solid transparent', borderRadius: '6px', padding: '3px 5px', cursor: 'pointer' }}>
+                {i}
+              </button>
+            ))}
+          </div>
+        </div>
+      </div>
+
+      <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '8px' }}>
+        <button type="button" onClick={onClose} style={{ padding: '8px 16px', borderRadius: '7px', backgroundColor: 'transparent', color: 'var(--color-text-muted)', border: '1px solid var(--color-border)', fontWeight: 600, cursor: 'pointer', fontSize: '13px' }}>
+          Cancel
+        </button>
+        <button type="submit" disabled={!name.trim()} style={{ padding: '8px 18px', borderRadius: '7px', backgroundColor: '#111111', color: 'white', border: 'none', fontWeight: 700, cursor: name.trim() ? 'pointer' : 'not-allowed', opacity: name.trim() ? 1 : 0.4, fontSize: '13px' }}>
+          Create Brand
+        </button>
+      </div>
+    </form>
+  );
+}
+
 // ── Brand card (shared) ─────────────────────────────────────────────────────
-function BrandCard({ space, state, currentUser, isManagerOrAdmin }) {
+function BrandCard({ space, state, currentUser, canSubAssign }) {
   const lists = state.lists.filter(l => l.spaceId === space.id);
   const listIds = lists.map(l => l.id);
   const allTasksInBrand = state.tasks.filter(t => listIds.includes(t.listId));
 
+  const isManagerOrAdmin = currentUser.role === 'Admin' || currentUser.role === 'Team Lead';
   const myTasks = allTasksInBrand.filter(t => (t.assignees || []).includes(currentUser.id));
   const tasksToShow = isManagerOrAdmin ? allTasksInBrand : myTasks;
 
@@ -102,22 +203,37 @@ function BrandCard({ space, state, currentUser, isManagerOrAdmin }) {
         </div>
       )}
 
-      {/* Team panel — managers/admins can sub-assign within this brand */}
-      {isManagerOrAdmin && (
+      {/* Team panel — Admin/Team Lead/Executive can sub-assign within this brand */}
+      {canSubAssign && (
         <BrandTeamPanel space={space} teamOnBrand={teamOnBrand} state={state} currentUser={currentUser} />
       )}
     </div>
   );
 }
 
-// ── Manager-only: sub-assign team to this brand ─────────────────────────────
+// ── Sub-assign team to this brand (Admin/Team Lead/Executive) ───────────────
 function BrandTeamPanel({ space, teamOnBrand, state, currentUser }) {
   const { dispatch } = useStore();
   const [adding, setAdding] = useState(false);
   const [pickMember, setPickMember] = useState('');
   const [pickType, setPickType] = useState('');
 
-  const candidateMembers = state.members.filter(m => m.role !== 'Admin' && m.id !== currentUser.id);
+  // Hierarchy: Executive can only pick Creative Associates
+  const candidateMembers = state.members.filter(m => {
+    if (m.id === currentUser.id) return false;
+    if (currentUser.role === 'Admin')      return m.role !== 'Admin';
+    if (currentUser.role === 'Team Lead')  return m.role === 'Executive' || m.role === 'Creative Associate';
+    if (currentUser.role === 'Executive')  return m.role === 'Creative Associate';
+    return false;
+  });
+
+  // Show only assignments the current user is allowed to manage (so an
+  // Executive doesn't see/remove a Team-Lead-level assignment)
+  const visibleTeam = teamOnBrand.filter(({ member }) => {
+    if (currentUser.role === 'Admin' || currentUser.role === 'Team Lead') return true;
+    if (currentUser.role === 'Executive') return member.role === 'Creative Associate';
+    return false;
+  });
 
   const handleAdd = () => {
     if (!pickMember) return;
@@ -141,19 +257,21 @@ function BrandTeamPanel({ space, teamOnBrand, state, currentUser }) {
         <div style={{ fontSize: '11px', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.6px', color: 'var(--color-text-muted)' }}>
           Team on This Brand
         </div>
-        {!adding && (
+        {!adding && candidateMembers.length > 0 && (
           <button onClick={() => setAdding(true)} style={{ display: 'inline-flex', alignItems: 'center', gap: '4px', padding: '3px 9px', borderRadius: '99px', border: '1px dashed var(--color-border)', background: 'transparent', cursor: 'pointer', color: 'var(--color-text-muted)', fontSize: '11px', fontWeight: 600 }}>
             <Plus size={11} /> Assign
           </button>
         )}
       </div>
 
-      {teamOnBrand.length === 0 && !adding && (
-        <p style={{ fontSize: '12px', color: 'var(--color-text-muted)', fontStyle: 'italic', margin: 0 }}>No team members on this brand yet.</p>
+      {visibleTeam.length === 0 && !adding && (
+        <p style={{ fontSize: '12px', color: 'var(--color-text-muted)', fontStyle: 'italic', margin: 0 }}>
+          {currentUser.role === 'Executive' ? 'No creative associates on this brand yet.' : 'No team members on this brand yet.'}
+        </p>
       )}
 
       <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
-        {teamOnBrand.map(({ id, member, taskType }) => {
+        {visibleTeam.map(({ id, member, taskType }) => {
           const rs = ROLE_PILL[member.role] || { bg: 'var(--color-surface-2)', color: 'var(--color-text-muted)' };
           const tc = TYPE_COLORS[taskType] || null;
           return (
@@ -197,30 +315,35 @@ function BrandTeamPanel({ space, teamOnBrand, state, currentUser }) {
 export default function AccountsView() {
   const { state } = useStore();
   const { currentUser } = useUI();
+  const [showNewBrand, setShowNewBrand] = useState(false);
 
   if (!currentUser) return null;
 
-  const isAdmin   = currentUser.role === 'Admin';
-  const isManager = currentUser.role === 'Team Lead';
-  const isManagerOrAdmin = isAdmin || isManager;
+  const isAdmin     = currentUser.role === 'Admin';
+  const isTeamLead  = currentUser.role === 'Team Lead';
+  const isExecutive = currentUser.role === 'Executive';
 
-  // Brands assigned directly to this user (no role-in-brand filter)
+  const canCreateBrands = isAdmin || isTeamLead;
+  // Admin/Team Lead/Executive can sub-assign team members within a brand
+  const canSubAssign    = isAdmin || isTeamLead || isExecutive;
+
+  // Brands assigned directly to this user
   const myAssignedSpaceIds = new Set(
     state.brandAssignments.filter(b => b.profileId === currentUser.id).map(b => b.spaceId)
   );
 
-  // Brands the user has tasks in (fallback for users without explicit assignment)
+  // Brands the user has tasks in (fallback)
   const taskBasedSpaceIds = new Set();
   state.tasks
-    .filter(t => (t.assignees || []).includes(currentUser.id))
+    .filter(t => (t.assignees || []).includes(currentUser.id) || t.assignedBy === currentUser.id)
     .forEach(t => {
       const list = state.lists.find(l => l.id === t.listId);
       if (list) taskBasedSpaceIds.add(list.spaceId);
     });
 
-  // For Admin: show all brands. For others: assigned brands ∪ brands with their tasks
+  // Admin & Team Lead see all brands. Executive & Creative Associate see assigned + task-related.
   let visibleSpaces;
-  if (isAdmin) {
+  if (isAdmin || isTeamLead) {
     visibleSpaces = state.spaces;
   } else {
     visibleSpaces = state.spaces.filter(sp => myAssignedSpaceIds.has(sp.id) || taskBasedSpaceIds.has(sp.id));
@@ -230,21 +353,36 @@ export default function AccountsView() {
     <div className="accounts-view">
       <div className="accounts-header">
         <div>
-          <h2 className="accounts-title">{isAdmin ? 'All Brands' : 'My Brands'}</h2>
+          <h2 className="accounts-title">{(isAdmin || isTeamLead) ? 'All Brands' : 'My Brands'}</h2>
           <p className="accounts-sub">
             {visibleSpaces.length} brand{visibleSpaces.length !== 1 ? 's' : ''}
-            {!isAdmin && ' assigned to you'}
-            {isManagerOrAdmin && ' · you can sub-assign team members per brand'}
+            {!isAdmin && !isTeamLead && ' assigned to you'}
+            {canSubAssign && ' · you can sub-assign team members per brand'}
           </p>
         </div>
+
+        {canCreateBrands && !showNewBrand && (
+          <button
+            onClick={() => setShowNewBrand(true)}
+            style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', padding: '9px 16px', backgroundColor: '#111111', color: 'white', border: 'none', borderRadius: '8px', fontWeight: 700, fontSize: '13px', cursor: 'pointer', flexShrink: 0 }}
+          >
+            <Plus size={14} /> New Brand
+          </button>
+        )}
       </div>
+
+      {showNewBrand && (
+        <NewBrandForm onClose={() => setShowNewBrand(false)} currentUser={currentUser} />
+      )}
 
       {visibleSpaces.length === 0 ? (
         <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '12px', padding: '80px 20px', color: 'var(--color-text-muted)', fontSize: '14px', textAlign: 'center' }}>
-          {isManager ? <Briefcase size={40} style={{ opacity: 0.2 }} /> : <User size={40} style={{ opacity: 0.2 }} />}
+          {(isAdmin || isTeamLead) ? <Briefcase size={40} style={{ opacity: 0.2 }} /> : <User size={40} style={{ opacity: 0.2 }} />}
           <div>
-            <p style={{ margin: 0, fontWeight: 600 }}>No brands assigned yet.</p>
-            <p style={{ margin: '6px 0 0', fontSize: '12px' }}>Ask your admin to assign brands to your account.</p>
+            <p style={{ margin: 0, fontWeight: 600 }}>No brands {canCreateBrands ? 'yet' : 'assigned yet'}.</p>
+            <p style={{ margin: '6px 0 0', fontSize: '12px' }}>
+              {canCreateBrands ? 'Click "New Brand" to add one.' : 'Ask your admin or team lead to assign brands to your account.'}
+            </p>
           </div>
         </div>
       ) : (
@@ -255,7 +393,7 @@ export default function AccountsView() {
               space={space}
               state={state}
               currentUser={currentUser}
-              isManagerOrAdmin={isManagerOrAdmin}
+              canSubAssign={canSubAssign}
             />
           ))}
         </div>

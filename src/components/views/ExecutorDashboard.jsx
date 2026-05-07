@@ -416,10 +416,14 @@ function BrandCard({ space, tasks, onClick }) {
 // ─────────────────────────────────────────────
 export default function ExecutorDashboard() {
   const { state, dispatch } = useStore();
-  const { currentUser, signOut } = useUI();
+  const { currentUser, signOut, setSelectedTaskId } = useUI();
   const [activeBrandId, setActiveBrandId] = useState(null);
 
   const myTasks = state.tasks.filter(t => t.assignees?.includes(currentUser?.id));
+  // Tasks the current user assigned to OTHERS — for Executive who can assign to Creative Associates.
+  const tasksIAssigned = state.tasks.filter(t =>
+    t.assignedBy === currentUser?.id && !(t.assignees || []).includes(currentUser?.id)
+  );
 
   // Group my tasks by space
   const tasksBySpace = state.spaces.map(space => {
@@ -516,7 +520,7 @@ export default function ExecutorDashboard() {
         <p className="exec-dash-sub">Click a brand to view your assigned tasks.</p>
       </div>
 
-      {tasksBySpace.length === 0 && myTasks.length === 0 ? (
+      {tasksBySpace.length === 0 && myTasks.length === 0 && tasksIAssigned.length === 0 ? (
         <div className="empty-state" style={{ marginTop: '60px' }}>
           <CheckCircle2 size={56} className="empty-icon" />
           <p>You have no tasks assigned. Enjoy the peace! 🎉</p>
@@ -557,6 +561,85 @@ export default function ExecutorDashboard() {
                       onAddComment={handleAddComment}
                     />
                   ))}
+              </div>
+            </div>
+          )}
+
+          {/* Tasks I've assigned — for Executives who delegate work to Creative Associates */}
+          {tasksIAssigned.length > 0 && (
+            <div style={{ marginTop: '32px' }}>
+              <h3 style={{ fontSize: '14px', fontWeight: 700, marginBottom: '4px', color: 'var(--color-text-muted)', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
+                Tasks I've Assigned ({tasksIAssigned.length})
+              </h3>
+              <p style={{ fontSize: '12px', color: 'var(--color-text-muted)', marginBottom: '12px' }}>
+                Track progress, change details, or reply to comments. Click a task to open it.
+              </p>
+              <div className="task-list">
+                {[...tasksIAssigned]
+                  .sort((a, b) => {
+                    const order = { Urgent: 0, High: 1, Normal: 2, Low: 3 };
+                    return (order[a.priority] ?? 3) - (order[b.priority] ?? 3);
+                  })
+                  .map(task => {
+                    const isDone = task.status === 'Done';
+                    const dueDateObj = task.dueDate ? new Date(task.dueDate) : null;
+                    const isOverdue = dueDateObj && dueDateObj < new Date() && !isDone;
+                    const assignedTo = (task.assignees || [])
+                      .map(id => state.members.find(m => m.id === id))
+                      .filter(Boolean);
+                    const commentCount = (task.comments || []).length;
+
+                    return (
+                      <div
+                        key={task.id}
+                        onClick={() => setSelectedTaskId(task.id)}
+                        className={`exec-task-card ${isDone ? 'is-done' : ''} ${isOverdue ? 'is-overdue' : ''}`}
+                        style={{ cursor: 'pointer' }}
+                      >
+                        <div className="task-card-top">
+                          <StatusPicker
+                            currentStatus={task.status}
+                            taskId={task.id}
+                            onStatusChange={handleMarkDone}
+                          />
+                          <div className="task-card-info" onClick={e => e.stopPropagation()} style={{ cursor: 'default' }}>
+                            <div className="task-card-title-row" onClick={() => setSelectedTaskId(task.id)} style={{ cursor: 'pointer' }}>
+                              <span className={`task-title ${isDone ? 'done-text' : ''}`}>{task.title}</span>
+                              <PriorityBadge priority={task.priority} />
+                              {task.type && (() => { const TIcon = TYPE_ICONS[task.type] || HelpCircle; return (
+                                <span className="tag-chip"><TIcon size={10} />{task.type}</span>
+                              ); })()}
+                            </div>
+                            <div className="task-card-meta">
+                              {assignedTo.length > 0 && (
+                                <span style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', fontSize: '12px', color: 'var(--color-text-muted)' }}>
+                                  Assigned to:
+                                  {assignedTo.map(m => (
+                                    <span key={m.id} style={{ display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
+                                      <img src={m.avatar} alt={m.name} style={{ width: '18px', height: '18px', borderRadius: '50%' }} />
+                                      <span style={{ fontWeight: 600, color: 'var(--color-text)' }}>{m.name}</span>
+                                    </span>
+                                  ))}
+                                </span>
+                              )}
+                              {dueDateObj && (
+                                <span className={`due-chip ${isOverdue ? 'overdue' : ''}`}>
+                                  {isOverdue ? <AlertTriangle size={12} /> : <Clock size={12} />}
+                                  {dueDateObj.toLocaleDateString([], { month: 'short', day: 'numeric' })}
+                                </span>
+                              )}
+                              {commentCount > 0 && (
+                                <span className="comment-hint">
+                                  <MessageSquare size={12}/>{commentCount}
+                                </span>
+                              )}
+                            </div>
+                          </div>
+                          <ChevronRight size={16} style={{ color: 'var(--color-text-muted)' }} />
+                        </div>
+                      </div>
+                    );
+                  })}
               </div>
             </div>
           )}
