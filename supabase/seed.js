@@ -28,10 +28,10 @@ const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY, {
 const USERS = [
   { legacyId: 'u1', name: 'Alice Smith',   email: 'alice@hoversagency.com',   password: 'admin123',   role: 'Admin',            avatar: 'https://i.pravatar.cc/150?u=1', status: 'Available'      },
   { legacyId: 'u2', name: 'Bob Jones',     email: 'bob@hoversagency.com',     password: 'exec123',    role: 'Executive',         avatar: 'https://i.pravatar.cc/150?u=2', status: 'Busy'           },
-  { legacyId: 'u3', name: 'Charlie Davis', email: 'charlie@hoversagency.com', password: 'design123',  role: 'Graphic Designer',  avatar: 'https://i.pravatar.cc/150?u=3', status: 'Do Not Disturb' },
-  { legacyId: 'u4', name: 'Diana Prince',  email: 'diana@hoversagency.com',   password: 'diana123',   role: 'Executive',         avatar: 'https://i.pravatar.cc/150?u=4', status: 'Available'      },
-  { legacyId: 'u5', name: 'Evan Wright',   email: 'evan@hoversagency.com',    password: 'evan123',    role: 'Graphic Designer',  avatar: 'https://i.pravatar.cc/150?u=5', status: 'Away'           },
-  { legacyId: 'u6', name: 'James Park',    email: 'james@hoversagency.com',   password: 'manager123', role: 'Manager',           avatar: 'https://i.pravatar.cc/150?u=6', status: 'Available'      },
+  { legacyId: 'u3', name: 'Charlie Davis', email: 'charlie@hoversagency.com', password: 'design123',  role: 'Creative Associate', avatar: 'https://i.pravatar.cc/150?u=3', status: 'Do Not Disturb' },
+  { legacyId: 'u4', name: 'Diana Prince',  email: 'diana@hoversagency.com',   password: 'diana123',   role: 'Executive',          avatar: 'https://i.pravatar.cc/150?u=4', status: 'Available'      },
+  { legacyId: 'u5', name: 'Evan Wright',   email: 'evan@hoversagency.com',    password: 'evan123',    role: 'Creative Associate', avatar: 'https://i.pravatar.cc/150?u=5', status: 'Away'           },
+  { legacyId: 'u6', name: 'James Park',    email: 'james@hoversagency.com',   password: 'manager123', role: 'Team Lead',          avatar: 'https://i.pravatar.cc/150?u=6', status: 'Available'      },
 ];
 
 // ── Helper: create or get existing auth user ──────────────────────────────────

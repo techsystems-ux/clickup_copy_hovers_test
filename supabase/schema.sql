@@ -9,7 +9,7 @@ create table if not exists profiles (
   id       uuid primary key references auth.users(id) on delete cascade,
   name     text not null,
   email    text not null unique,
-  role     text not null default 'Executive',
+  role     text not null default 'Creative Associate',
   avatar   text default '',
   status   text default 'Available',
   created_at timestamptz default now()

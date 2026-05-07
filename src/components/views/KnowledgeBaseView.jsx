@@ -260,7 +260,7 @@ export default function KnowledgeBaseView() {
 
   if (!currentUser) return null;
 
-  const isManager = currentUser.role === 'Admin' || currentUser.role === 'Manager';
+  const isManager = currentUser.role === 'Admin' || currentUser.role === 'Team Lead';
   return isManager
     ? <ManagerKnowledgeBase />
     : <DesignerKnowledgeBase currentUser={currentUser} state={state} />;

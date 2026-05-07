@@ -17,7 +17,7 @@ export default function Topbar() {
       </div>
 
       <div className="topbar-right">
-        {activePage !== 'Settings' && (
+        {activePage !== 'Settings' && currentUser?.role !== 'Creative Associate' && (
           <button className="new-task-btn" onClick={() => setNewTaskModalOpen(true)}>
             <Plus size={16} />
             New Task

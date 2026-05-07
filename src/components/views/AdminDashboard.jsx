@@ -15,14 +15,14 @@ const signupClient = createClient(
   { auth: { persistSession: false, autoRefreshToken: false, detectSessionInUrl: false } }
 );
 
-const ROLES = ['Manager', 'Executive', 'Graphic Designer'];
+const ROLES = ['Team Lead', 'Executive', 'Creative Associate'];
 const TASK_TYPES = ['Static', 'Video', 'Design', 'Copy', 'Strategy', 'Other'];
 
 const ROLE_STYLE = {
-  Admin:              { bg: '#111111',               color: '#ffffff' },
-  Manager:            { bg: '#2c2c2c',               color: '#ffffff' },
-  Executive:          { bg: 'rgba(33,150,243,0.15)', color: '#1565c0' },
-  'Graphic Designer': { bg: 'rgba(156,39,176,0.12)', color: '#7b1fa2' },
+  Admin:                { bg: '#111111',               color: '#ffffff' },
+  'Team Lead':          { bg: '#2c2c2c',               color: '#ffffff' },
+  Executive:            { bg: 'rgba(33,150,243,0.15)', color: '#1565c0' },
+  'Creative Associate': { bg: 'rgba(156,39,176,0.12)', color: '#7b1fa2' },
 };
 
 const TYPE_BG = {
@@ -69,7 +69,7 @@ function MemberBrandAssignments({ member, state, currentUserId, dispatch }) {
     setAdding(false); setPickSpace(''); setPickType('');
   };
 
-  const showTypeField = member.role === 'Executive' || member.role === 'Graphic Designer';
+  const showTypeField = member.role === 'Executive' || member.role === 'Creative Associate';
 
   return (
     <div style={{ marginTop: '10px', paddingTop: '10px', borderTop: '1px dashed var(--color-border)' }}>
@@ -133,7 +133,7 @@ export default function AdminDashboard() {
   const [uName,     setUName]     = useState('');
   const [uEmail,    setUEmail]    = useState('');
   const [uPass,     setUPass]     = useState('');
-  const [uRole,     setURole]     = useState('Graphic Designer');
+  const [uRole,     setURole]     = useState('Creative Associate');
   const [showPass,  setShowPass]  = useState(false);
   const [creating,  setCreating]  = useState(false);
   const [createMsg, setCreateMsg] = useState(null);
@@ -256,7 +256,7 @@ export default function AdminDashboard() {
   const maxBrand = Math.max(...brandStats.map(b => b.count), 1);
 
   const workload = state.members
-    .filter(m => m.role !== 'Admin' && m.role !== 'Manager')
+    .filter(m => m.role !== 'Admin' && m.role !== 'Team Lead')
     .map(m => ({ ...m, active: tasks.filter(t => (t.assignees || []).includes(m.id) && t.status !== 'Done').length }))
     .sort((a, b) => b.active - a.active);
 

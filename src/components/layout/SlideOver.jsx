@@ -3,9 +3,70 @@ import { useUI } from '../../store/UIContext';
 import { useStore } from '../../store/StoreContext';
 import {
   X, Clock, Flag, Send, MessageSquare, Link,
-  Film, Image, PenLine, Target, FileText, HelpCircle, CheckCircle2, Circle
+  Film, Image, PenLine, Target, FileText, HelpCircle, CheckCircle2, ChevronDown
 } from 'lucide-react';
 import './SlideOver.css';
+
+const STATUS_OPTIONS = [
+  { value: 'To Do',       label: 'To Do',       color: '#888888' },
+  { value: 'In Progress', label: 'In Progress', color: '#2196f3' },
+  { value: 'Done',        label: 'Completed',   color: '#4caf50' },
+];
+
+function StatusPicker({ currentStatus, onChange }) {
+  const [open, setOpen] = useState(false);
+  const current = STATUS_OPTIONS.find(o => o.value === currentStatus) || STATUS_OPTIONS[0];
+
+  return (
+    <div style={{ position: 'relative' }}>
+      <button
+        onClick={() => setOpen(p => !p)}
+        style={{
+          display: 'flex', alignItems: 'center', gap: '7px',
+          padding: '7px 14px', borderRadius: '8px', cursor: 'pointer',
+          border: `1px solid ${current.color}55`,
+          backgroundColor: `${current.color}15`,
+          color: current.color, fontSize: '13px', fontWeight: 700,
+        }}
+      >
+        <span style={{ width: '8px', height: '8px', borderRadius: '50%', backgroundColor: current.color, flexShrink: 0 }} />
+        {current.label}
+        <ChevronDown size={13} />
+      </button>
+
+      {open && (
+        <>
+          <div style={{ position: 'fixed', inset: 0, zIndex: 99 }} onClick={() => setOpen(false)} />
+          <div style={{
+            position: 'absolute', top: 'calc(100% + 4px)', left: 0, zIndex: 100,
+            backgroundColor: 'var(--color-surface)', border: '1px solid var(--color-border)',
+            borderRadius: '10px', boxShadow: '0 6px 20px rgba(0,0,0,0.18)',
+            overflow: 'hidden', minWidth: '160px',
+          }}>
+            {STATUS_OPTIONS.map(opt => (
+              <button
+                key={opt.value}
+                onClick={() => { onChange(opt.value); setOpen(false); }}
+                style={{
+                  width: '100%', display: 'flex', alignItems: 'center', gap: '10px',
+                  padding: '10px 14px',
+                  background: opt.value === currentStatus ? `${opt.color}15` : 'transparent',
+                  border: 'none', cursor: 'pointer', textAlign: 'left',
+                  color: opt.value === currentStatus ? opt.color : 'var(--color-text)',
+                  fontSize: '13px', fontWeight: opt.value === currentStatus ? 700 : 500,
+                }}
+              >
+                <span style={{ width: '8px', height: '8px', borderRadius: '50%', backgroundColor: opt.color, flexShrink: 0 }} />
+                {opt.label}
+                {opt.value === currentStatus && <CheckCircle2 size={13} style={{ marginLeft: 'auto', opacity: 0.7 }} />}
+              </button>
+            ))}
+          </div>
+        </>
+      )}
+    </div>
+  );
+}
 
 const PRIORITY_MAP = {
   Urgent: { label: 'P1 · Urgent', color: '#b20f00', bg: 'rgba(178,15,0,0.12)' },
@@ -51,9 +112,9 @@ export default function SlideOver() {
     setCommentText('');
   };
 
-  const handleToggleDone = () => {
+  const handleStatusChange = (newStatus) => {
     if (!task) return;
-    dispatch({ type: 'UPDATE_TASK_STATUS', taskId: task.id, newStatus: task.status === 'Done' ? 'In Progress' : 'Done' });
+    dispatch({ type: 'UPDATE_TASK_STATUS', taskId: task.id, newStatus });
   };
 
   if (!task) return <div className={`slide-over ${selectedTaskId ? 'open' : ''}`} />;
@@ -78,25 +139,16 @@ export default function SlideOver() {
       </div>
 
       <div className="slide-over-content custom-scrollbar">
-        {/* Title + done toggle */}
-        <div style={{ display: 'flex', alignItems: 'flex-start', gap: '12px' }}>
-          <button
-            onClick={handleToggleDone}
-            style={{ flexShrink: 0, marginTop: '4px', background: 'none', border: 'none', cursor: 'pointer', color: isDone ? 'var(--color-success)' : 'var(--color-text-muted)', transition: 'color 0.2s' }}
-            title={isDone ? 'Mark as Not Done' : 'Mark as Done'}
-          >
-            {isDone ? <CheckCircle2 size={22} /> : <Circle size={22} />}
-          </button>
-          <h2 className="task-title" style={{ textDecoration: isDone ? 'line-through' : 'none', opacity: isDone ? 0.6 : 1 }}>
-            {task.title}
-          </h2>
-        </div>
+        {/* Title */}
+        <h2 className="task-title" style={{ textDecoration: isDone ? 'line-through' : 'none', opacity: isDone ? 0.6 : 1 }}>
+          {task.title}
+        </h2>
 
         {/* Meta block */}
         <div className="task-meta">
           <div className="meta-row">
             <span className="meta-label">Status</span>
-            <span className="status-badge" data-status={task.status}>{task.status}</span>
+            <StatusPicker currentStatus={task.status} onChange={handleStatusChange} />
           </div>
           <div className="meta-row">
             <span className="meta-label">Priority</span>

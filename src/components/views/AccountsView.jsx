@@ -21,10 +21,10 @@ const TYPE_COLORS = {
 const TASK_TYPES = ['Static', 'Video', 'Design', 'Copy', 'Strategy', 'Other'];
 
 const ROLE_PILL = {
-  Manager:            { bg: '#2c2c2c',               color: '#ffffff' },
-  Executive:          { bg: 'rgba(33,150,243,0.15)', color: '#1565c0' },
-  'Graphic Designer': { bg: 'rgba(156,39,176,0.12)', color: '#7b1fa2' },
-  Admin:              { bg: '#111111',               color: '#ffffff' },
+  'Team Lead':          { bg: '#2c2c2c',               color: '#ffffff' },
+  Executive:            { bg: 'rgba(33,150,243,0.15)', color: '#1565c0' },
+  'Creative Associate': { bg: 'rgba(156,39,176,0.12)', color: '#7b1fa2' },
+  Admin:                { bg: '#111111',               color: '#ffffff' },
 };
 
 // ── Brand card (shared) ─────────────────────────────────────────────────────
@@ -201,7 +201,7 @@ export default function AccountsView() {
   if (!currentUser) return null;
 
   const isAdmin   = currentUser.role === 'Admin';
-  const isManager = currentUser.role === 'Manager';
+  const isManager = currentUser.role === 'Team Lead';
   const isManagerOrAdmin = isAdmin || isManager;
 
   // Brands assigned directly to this user (no role-in-brand filter)

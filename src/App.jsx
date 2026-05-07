@@ -31,7 +31,7 @@ function App() {
     return <LoginView />;
   }
 
-  const isManager = currentUser.role === 'Admin' || currentUser.role === 'Manager';
+  const isManager = currentUser.role === 'Admin' || currentUser.role === 'Team Lead';
 
   const renderView = () => {
     switch (activePage) {

@@ -2,11 +2,70 @@ import React, { useState } from 'react';
 import { useStore } from '../../store/StoreContext';
 import { useUI } from '../../store/UIContext';
 import {
-  ArrowLeft, CheckCircle2, Circle, ChevronRight,
+  ArrowLeft, CheckCircle2, Circle, ChevronRight, ChevronDown,
   Clock, AlertTriangle, Flag, MessageSquare,
   Film, Image, PenLine, Code, FileText, HelpCircle, Plus
 } from 'lucide-react';
 import './ManagerTeamView.css';
+
+const STATUS_OPTIONS = [
+  { value: 'To Do',       label: 'To Do',       color: '#888888' },
+  { value: 'In Progress', label: 'In Progress', color: '#2196f3' },
+  { value: 'Done',        label: 'Completed',   color: '#4caf50' },
+];
+
+function StatusPicker({ currentStatus, taskId, onStatusChange }) {
+  const [open, setOpen] = useState(false);
+  const current = STATUS_OPTIONS.find(o => o.value === currentStatus) || STATUS_OPTIONS[0];
+  return (
+    <div style={{ position: 'relative', flexShrink: 0 }} onClick={e => e.stopPropagation()}>
+      <button
+        onClick={() => setOpen(p => !p)}
+        style={{
+          display: 'flex', alignItems: 'center', gap: '6px',
+          padding: '5px 10px', borderRadius: '7px', cursor: 'pointer',
+          border: `1px solid ${current.color}44`,
+          backgroundColor: `${current.color}12`,
+          color: current.color, fontSize: '12px', fontWeight: 700,
+        }}
+      >
+        <span style={{ width: '7px', height: '7px', borderRadius: '50%', backgroundColor: current.color, flexShrink: 0 }} />
+        {current.label}
+        <ChevronDown size={12} />
+      </button>
+      {open && (
+        <>
+          <div style={{ position: 'fixed', inset: 0, zIndex: 99 }} onClick={() => setOpen(false)} />
+          <div style={{
+            position: 'absolute', top: 'calc(100% + 4px)', left: 0, zIndex: 100,
+            backgroundColor: 'var(--color-surface)', border: '1px solid var(--color-border)',
+            borderRadius: '10px', boxShadow: '0 6px 20px rgba(0,0,0,0.15)',
+            overflow: 'hidden', minWidth: '160px',
+          }}>
+            {STATUS_OPTIONS.map(opt => (
+              <button
+                key={opt.value}
+                onClick={() => { onStatusChange(taskId, opt.value); setOpen(false); }}
+                style={{
+                  width: '100%', display: 'flex', alignItems: 'center', gap: '10px',
+                  padding: '10px 14px',
+                  background: opt.value === currentStatus ? `${opt.color}15` : 'transparent',
+                  border: 'none', cursor: 'pointer', textAlign: 'left',
+                  color: opt.value === currentStatus ? opt.color : 'var(--color-text)',
+                  fontSize: '13px', fontWeight: opt.value === currentStatus ? 700 : 500,
+                }}
+              >
+                <span style={{ width: '8px', height: '8px', borderRadius: '50%', backgroundColor: opt.color, flexShrink: 0 }} />
+                {opt.label}
+                {opt.value === currentStatus && <CheckCircle2 size={13} style={{ marginLeft: 'auto', opacity: 0.7 }} />}
+              </button>
+            ))}
+          </div>
+        </>
+      )}
+    </div>
+  );
+}
 
 // ─── Priority config ────────────────────────────────
 const PRIORITY_MAP = {
@@ -235,12 +294,25 @@ function MemberCard({ member, tasks, onClick }) {
 
 // ─── Main Manager Team View ──────────────────────────
 export default function ManagerTeamView() {
-  const { state } = useStore();
-  const { setNewTaskModalOpen } = useUI();
+  const { state, dispatch } = useStore();
+  const { setNewTaskModalOpen, setSelectedTaskId, currentUser } = useUI();
   const [activeMemberId, setActiveMemberId] = useState(null);
 
-  // Only show executors (Members + Guests)
-  const executors = state.members.filter(m => m.role === 'Member' || m.role === 'Guest');
+  // Tasks assigned directly to the current user (e.g. Admin assigned a task to a Team Lead)
+  const myTasks = state.tasks.filter(t => (t.assignees || []).includes(currentUser?.id));
+
+  const handleMyStatusChange = (taskId, newStatus) => {
+    dispatch({ type: 'UPDATE_TASK_STATUS', taskId, newStatus });
+  };
+
+  // Show all team members the current user can supervise.
+  // Team Lead supervises Executives + Creative Associates; Admin sees everyone except themselves.
+  const executors = state.members.filter(m => {
+    if (m.id === currentUser?.id) return false;
+    if (currentUser?.role === 'Admin')     return m.role !== 'Admin';
+    if (currentUser?.role === 'Team Lead') return m.role === 'Executive' || m.role === 'Creative Associate';
+    return false;
+  });
 
   const getTasksForMember = (memberId) =>
     state.tasks.filter(t => (t.assignees || []).includes(memberId));
@@ -296,6 +368,62 @@ export default function ManagerTeamView() {
           </div>
         ))}
       </div>
+
+      {/* My Tasks — for Team Leads who have tasks assigned directly to them */}
+      {myTasks.length > 0 && (
+        <div style={{ marginBottom: '32px' }}>
+          <div className="mtv-section-label">My Tasks ({myTasks.length})</div>
+          <div className="mtv-task-list">
+            {[...myTasks]
+              .sort((a, b) => {
+                const order = { Urgent: 0, High: 1, Normal: 2, Low: 3 };
+                return (order[a.priority] ?? 3) - (order[b.priority] ?? 3);
+              })
+              .map(task => {
+                const isDone = task.status === 'Done';
+                const dueDateObj = task.dueDate ? new Date(task.dueDate) : null;
+                const isOverdue = dueDateObj && dueDateObj < new Date() && !isDone;
+                return (
+                  <div
+                    key={task.id}
+                    className={`mtv-task-row ${isDone ? 'is-done' : ''} ${isOverdue ? 'is-overdue' : ''}`}
+                    onClick={() => setSelectedTaskId(task.id)}
+                    style={{ cursor: 'pointer' }}
+                  >
+                    <div className="mtv-task-left">
+                      <StatusPicker
+                        currentStatus={task.status}
+                        taskId={task.id}
+                        onStatusChange={handleMyStatusChange}
+                      />
+                      <div className="mtv-task-info">
+                        <div className="mtv-task-title-row">
+                          <span className={`mtv-task-title ${isDone ? 'done-text' : ''}`}>{task.title}</span>
+                          <PriBadge priority={task.priority} />
+                          <TypeBadge type={task.type} />
+                        </div>
+                        <div className="mtv-task-meta">
+                          {dueDateObj && (
+                            <span className={`mtv-due-chip ${isOverdue ? 'overdue' : ''}`}>
+                              {isOverdue ? <AlertTriangle size={11} /> : <Clock size={11} />}
+                              {dueDateObj.toLocaleDateString([], { month: 'short', day: 'numeric' })}
+                            </span>
+                          )}
+                          {(task.comments?.length > 0) && (
+                            <span className="mtv-comment-chip">
+                              <MessageSquare size={11} />{task.comments.length}
+                            </span>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                    <ChevronRight size={15} className="mtv-row-arrow" />
+                  </div>
+                );
+              })}
+          </div>
+        </div>
+      )}
 
       {/* Team grid */}
       <div className="mtv-section-label">Team Members</div>

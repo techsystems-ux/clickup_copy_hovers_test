@@ -202,7 +202,7 @@ function ManagerHome({ currentUser, state }) {
     count: allTasks.filter(t => t.status === s).length,
   }));
 
-  const executors = state.members.filter(m => m.role === 'Executive' || m.role === 'Graphic Designer');
+  const executors = state.members.filter(m => m.role === 'Executive' || m.role === 'Creative Associate');
 
   return (
     <div style={{ padding: '32px', maxWidth: '1100px', margin: '0 auto', width: '100%' }}>
@@ -289,7 +289,7 @@ export default function HomeView() {
 
   if (!currentUser) return null;
 
-  const isManager = currentUser.role === 'Admin' || currentUser.role === 'Manager';
+  const isManager = currentUser.role === 'Admin' || currentUser.role === 'Team Lead';
   return isManager
     ? <ManagerHome currentUser={currentUser} state={state} />
     : <DesignerHome currentUser={currentUser} state={state} />;

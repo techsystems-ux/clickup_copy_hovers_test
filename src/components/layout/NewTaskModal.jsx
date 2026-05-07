@@ -84,7 +84,15 @@ export default function NewTaskModal() {
     handleClose();
   };
 
-  const executors = state.members.filter(m => m.role !== 'Admin');
+  // Hierarchy: Admin → anyone; Team Lead → Executive + Creative Associate;
+  // Executive → Creative Associate only; Creative Associate → cannot assign.
+  const executors = state.members.filter(m => {
+    if (m.id === currentUser?.id) return false;
+    if (currentUser?.role === 'Admin')      return m.role !== 'Admin';
+    if (currentUser?.role === 'Team Lead')  return m.role === 'Executive' || m.role === 'Creative Associate';
+    if (currentUser?.role === 'Executive')  return m.role === 'Creative Associate';
+    return false;
+  });
 
   const inputStyle  = { width: '100%', padding: '10px 14px', background: 'var(--color-bg)', border: '1px solid var(--color-border)', borderRadius: '8px', color: 'var(--color-text)', outline: 'none', fontSize: '14px', boxSizing: 'border-box' };
   const labelStyle  = { display: 'block', fontSize: '11px', fontWeight: 700, color: 'var(--color-text-muted)', marginBottom: '8px', textTransform: 'uppercase', letterSpacing: '0.6px' };
