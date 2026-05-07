@@ -196,6 +196,48 @@ DELETE FROM profiles          WHERE id         = '<uuid>';
 DELETE FROM auth.users        WHERE id         = '<uuid>';
 ```
 
+## Theme & Design Tokens
+
+The single source of truth for theming is `design_tokens.md` (project root) and its CSS implementation in `src/index.css`. Components should consume CSS variables — never re-introduce hardcoded colors or font sizes that drift from the tokens.
+
+### Color tokens (`:root` in `index.css`)
+
+```
+Palette        : --white #FFF, --off-white #FAFAFA, --light-grey #F5F5F5,
+                  --mid-grey #E8E8E8, --border #E0E0E0, --border-subtle #EEEEEE
+Text ladder    : --text-primary #080808 → --text-secondary #444
+                  → --text-tertiary #888 → --text-muted #BBB
+                  → --text-dim #AAA → --text-faint #CCC
+Accent (red)   : --accent #B20F00, --accent-hover #9A0D00
+                  + 5/10/15/20% translucent tints (--accent-5, --accent-10, ...)
+Status         : --status-success #10B981, --status-info #1565c0,
+                  --status-warn #e65100, --status-error #b20f00,
+                  --status-done #4caf50
+```
+
+Existing legacy aliases (`--color-bg`, `--color-surface`, `--color-text`, `--color-accent`, etc.) are mapped to the new tokens so every component automatically picks up the theme — no per-component refactor was needed.
+
+### Typography tokens
+
+```
+Font stack: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto,
+            "Helvetica Neue", Arial, sans-serif
+            (No Google Fonts. No Montserrat. System stack only.)
+Sizes     : --text-7 7px · --text-8 · --text-9 · --text-10 · --text-11
+            · --text-12 (xs) · --text-13 · --text-14 (sm) · --text-16 (base)
+            · --text-18 (lg) · --text-20 (xl) · --text-24 (2xl)
+Weights   : --w-medium 500 · --w-semibold 600 · --w-bold 700 · --w-black 900
+```
+
+### Other tokens
+```
+Radii        : --radius-sm 6 · --radius-md 10 · --radius-lg 14
+Elevations   : --shadow-1 (cards), --shadow-2 (modals)
+Overlay scrim: --overlay-scrim rgba(0,0,0,0.20)
+```
+
+When adding a new component, prefer `var(--text-tertiary)` over `#888888`, `var(--accent)` over `#B20F00`, etc. If a value isn't covered by a token, it probably shouldn't exist — first check `design_tokens.md`, then add a new token if the use case is genuinely new.
+
 ## Conventions
 - CSS is co-located per component (e.g. `ExecutorDashboard.css` next to `ExecutorDashboard.jsx`)
 - No TypeScript — plain JSX throughout
@@ -204,3 +246,18 @@ DELETE FROM auth.users        WHERE id         = '<uuid>';
 - Avatar fallback: `https://i.pravatar.cc/150?u=${email}`
 - Brand IDs are `sp_${crypto.randomUUID()}`, list IDs `l_${crypto.randomUUID()}`, task IDs `t_${crypto.randomUUID()}`, comment IDs `c_${crypto.randomUUID()}` — never `Date.now()`
 - Service-role keys never appear in `src/`; user creation from the Admin Panel uses a secondary anon `signupClient` with `persistSession: false` so signing up new users doesn't kick the admin out of their session
+- All theming through CSS variables in `index.css`. Hardcoded hex values in components are a smell — prefer `var(--…)` tokens.
+
+## Cross-Session Context
+
+This project is designed so that any future Claude session can pick up where the last one left off. The state is reconstructed from:
+
+1. **CLAUDE.md** (this file) — architecture, hierarchy, schema, conventions, recent decisions
+2. **`design_tokens.md`** — visual design language
+3. **Code files** — current implementation
+4. **`git log`** — chronological history of changes with descriptive messages
+5. **`.env`** — Supabase URL + publishable anon key (local-only, gitignored)
+6. **`hovers_project_creds.md`** at `C:\Users\darsh\Downloads\` — full credentials including GitHub token and Supabase service key (local-only, never committed)
+7. **OS credential store** — `git push` works because credentials are cached in Windows Credential Manager
+
+What does NOT persist: the live conversation. Each session starts fresh and reads the above to rebuild context.
