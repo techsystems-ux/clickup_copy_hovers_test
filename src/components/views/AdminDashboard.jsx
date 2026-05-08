@@ -38,9 +38,6 @@ const TYPE_COLOR = {
   Copy: '#2e7d32', Strategy: '#111111', Other: '#777',
 };
 
-const PRESET_COLORS = ['#111111','#e91e63','#ff6900','#2196f3','#4caf50','#ff9800','#9c27b0','#00bcd4','#f44336','#607d8b'];
-const PRESET_ICONS  = ['🚀','🛍️','🌸','⚡','🎯','💎','🎨','📱','🏆','🌟','🎬','📦'];
-
 function RoleBadge({ role }) {
   const s = ROLE_STYLE[role] || { bg: 'var(--color-surface-2)', color: 'var(--color-text-muted)' };
   return (
@@ -141,14 +138,6 @@ export default function AdminDashboard() {
   // ── Role editing ─────────────────────────────────────────────────────────
   const [editingRole, setEditingRole] = useState(null);
 
-  // ── Create brand ─────────────────────────────────────────────────────────
-  const [bName,        setBName]        = useState('');
-  const [bColor,       setBColor]       = useState('#111111');
-  const [bIcon,        setBIcon]        = useState('🚀');
-  const [bDescription, setBDescription] = useState('');
-  const [bWebsite,     setBWebsite]     = useState('');
-  const [bIndustry,    setBIndustry]    = useState('');
-
   // ── Add list ─────────────────────────────────────────────────────────────
   const [addListTo,   setAddListTo]   = useState(null);
   const [newListName, setNewListName] = useState('');
@@ -201,25 +190,6 @@ export default function AdminDashboard() {
   const handleDeleteMember = (member) => {
     if (!window.confirm(`Remove ${member.name} from the team? This cannot be undone.`)) return;
     dispatch({ type: 'DELETE_MEMBER', payload: { memberId: member.id } });
-  };
-
-  const handleCreateBrand = (e) => {
-    e.preventDefault();
-    if (!bName.trim()) return;
-    dispatch({
-      type: 'ADD_SPACE',
-      payload: {
-        id:          `sp_${crypto.randomUUID()}`,
-        name:        bName.trim(),
-        color:       bColor,
-        icon:        bIcon,
-        description: bDescription.trim(),
-        website:     bWebsite.trim(),
-        industry:    bIndustry.trim(),
-      },
-    });
-    setBName(''); setBColor('#111111'); setBIcon('🚀');
-    setBDescription(''); setBWebsite(''); setBIndustry('');
   };
 
   const handleDeleteBrand = (sp) => {
@@ -409,70 +379,11 @@ export default function AdminDashboard() {
       {tab === 'brands' && (
         <div style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
 
-          <div style={card}>
-            <h3 style={{ fontSize: '16px', fontWeight: 700, marginBottom: '20px', display: 'flex', alignItems: 'center', gap: '8px' }}>
-              <Plus size={16} /> Add New Brand
-            </h3>
-            <form onSubmit={handleCreateBrand} style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
-                <div>
-                  <label style={lbl}>Brand Name</label>
-                  <input style={inp} value={bName} onChange={e => setBName(e.target.value)} placeholder="e.g. Apex Sport" required />
-                </div>
-                <div>
-                  <label style={lbl}>Industry</label>
-                  <input style={inp} value={bIndustry} onChange={e => setBIndustry(e.target.value)} placeholder="e.g. Fashion, FMCG, SaaS" />
-                </div>
-              </div>
-
-              <div>
-                <label style={lbl}>Website</label>
-                <input style={inp} type="url" value={bWebsite} onChange={e => setBWebsite(e.target.value)} placeholder="https://apexsport.com" />
-              </div>
-
-              <div>
-                <label style={lbl}>Description</label>
-                <textarea
-                  style={{ ...inp, fontFamily: 'inherit', resize: 'vertical', minHeight: '70px' }}
-                  value={bDescription}
-                  onChange={e => setBDescription(e.target.value)}
-                  placeholder="Short note about this brand — niche, voice, or what work you do for them."
-                />
-              </div>
-
-              <div style={{ display: 'flex', gap: '32px', flexWrap: 'wrap' }}>
-                <div>
-                  <label style={lbl}>Brand Color</label>
-                  <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap', marginTop: '4px' }}>
-                    {PRESET_COLORS.map(c => (
-                      <div key={c} onClick={() => setBColor(c)} style={{ width: '26px', height: '26px', borderRadius: '50%', backgroundColor: c, cursor: 'pointer', border: bColor === c ? '3px solid white' : '2px solid transparent', outline: bColor === c ? `2px solid ${c}` : 'none', transition: 'all 0.15s' }} />
-                    ))}
-                  </div>
-                </div>
-                <div>
-                  <label style={lbl}>Icon</label>
-                  <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap', marginTop: '4px' }}>
-                    {PRESET_ICONS.map(icon => (
-                      <button key={icon} type="button" onClick={() => setBIcon(icon)} style={{ fontSize: '18px', background: bIcon === icon ? 'var(--color-surface-2)' : 'none', border: bIcon === icon ? '2px solid var(--color-border)' : '2px solid transparent', borderRadius: '7px', padding: '4px 6px', cursor: 'pointer', transition: 'all 0.15s' }}>
-                        {icon}
-                      </button>
-                    ))}
-                  </div>
-                </div>
-              </div>
-
-              <div style={{ display: 'flex', alignItems: 'center', gap: '10px', padding: '12px 16px', backgroundColor: 'var(--color-bg)', border: '1px solid var(--color-border)', borderRadius: '8px' }}>
-                <span style={{ fontSize: '20px' }}>{bIcon}</span>
-                <span style={{ fontWeight: 700, color: bColor, fontSize: '15px' }}>{bName || 'Brand Name Preview'}</span>
-                <div style={{ width: '10px', height: '10px', borderRadius: '50%', backgroundColor: bColor, marginLeft: 'auto' }} />
-              </div>
-
-              <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
-                <button type="submit" style={{ padding: '10px 24px', backgroundColor: '#111111', color: 'white', border: 'none', borderRadius: '8px', fontWeight: 700, fontSize: '14px', cursor: 'pointer' }}>
-                  Create Brand
-                </button>
-              </div>
-            </form>
+          <div style={{ ...card, padding: '14px 18px', display: 'flex', alignItems: 'center', gap: '10px' }}>
+            <Building2 size={16} color="var(--text-tertiary)" />
+            <p style={{ fontSize: '12px', color: 'var(--text-tertiary)', flex: 1 }}>
+              Brand creation has moved to the <strong style={{ color: 'var(--text-primary)' }}>Accounts</strong> page. This view is for managing existing brands — lists, deletion, and assignment counts.
+            </p>
           </div>
 
           <div style={card}>
@@ -480,7 +391,7 @@ export default function AdminDashboard() {
               <Building2 size={16} /> Brands ({state.spaces.length})
             </h3>
             <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
-              {state.spaces.length === 0 && <p style={{ fontSize: '13px', color: 'var(--color-text-muted)', fontStyle: 'italic' }}>No brands yet. Add one above.</p>}
+              {state.spaces.length === 0 && <p style={{ fontSize: '13px', color: 'var(--color-text-muted)', fontStyle: 'italic' }}>No brands yet. Create one from the Accounts page.</p>}
               {state.spaces.map(sp => {
                 const spLists = state.lists.filter(l => l.spaceId === sp.id);
                 const spTaskCount = tasks.filter(t => spLists.map(l => l.id).includes(t.listId)).length;

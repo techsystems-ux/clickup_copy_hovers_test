@@ -1,36 +1,23 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import { useStore } from '../../store/StoreContext';
 import { useUI } from '../../store/UIContext';
 import './AccountsView.css';
-import { User, Plus, X, Globe, Briefcase, Film, Image, PenLine, Target, FileText, HelpCircle } from 'lucide-react';
+import {
+  Plus, X, Globe, Briefcase, Search, Building2, Trash2, ArrowUpRight,
+  Film, Image, PenLine, Target, FileText, HelpCircle,
+} from 'lucide-react';
 
 const TYPE_ICONS = {
   Static: Image, Video: Film, Design: PenLine,
   Copy: FileText, Strategy: Target, Other: HelpCircle,
 };
 
-const TYPE_COLORS = {
-  Static:   { color: '#7b1fa2', bg: 'rgba(123,31,162,0.10)' },
-  Video:    { color: '#1565c0', bg: 'rgba(21,101,192,0.10)' },
-  Design:   { color: '#e65100', bg: 'rgba(230,81,0,0.10)'   },
-  Copy:     { color: '#2e7d32', bg: 'rgba(46,125,50,0.10)'  },
-  Strategy: { color: '#111111', bg: 'rgba(17,17,17,0.08)'   },
-  Other:    { color: '#888888', bg: 'rgba(136,136,136,0.10)' },
-};
-
 const TASK_TYPES = ['Static', 'Video', 'Design', 'Copy', 'Strategy', 'Other'];
-
-const ROLE_PILL = {
-  'Team Lead':          { bg: '#2c2c2c',               color: '#ffffff' },
-  Executive:            { bg: 'rgba(33,150,243,0.15)', color: '#1565c0' },
-  'Creative Associate': { bg: 'rgba(156,39,176,0.12)', color: '#7b1fa2' },
-  Admin:                { bg: '#111111',               color: '#ffffff' },
-};
 
 const PRESET_COLORS = ['#111111','#e91e63','#ff6900','#2196f3','#4caf50','#ff9800','#9c27b0','#00bcd4','#f44336','#607d8b'];
 const PRESET_ICONS  = ['🚀','🛍️','🌸','⚡','🎯','💎','🎨','📱','🏆','🌟','🎬','📦'];
 
-// ── Inline brand creation form (for Admin + Team Lead) ──────────────────────
+// ─── Inline brand creation form (Admin + Team Lead) ──────────────────────────
 function NewBrandForm({ onClose, currentUser }) {
   const { dispatch } = useStore();
   const [name,        setName]        = useState('');
@@ -51,7 +38,6 @@ function NewBrandForm({ onClose, currentUser }) {
         description: description.trim(), website: website.trim(), industry: industry.trim(),
       },
     });
-    // Auto-assign the creator so the brand shows up in their My Brands list immediately
     dispatch({
       type: 'ASSIGN_BRAND',
       payload: { profileId: currentUser.id, spaceId, taskType: null, assignedBy: currentUser.id },
@@ -59,165 +45,83 @@ function NewBrandForm({ onClose, currentUser }) {
     onClose();
   };
 
-  const inp = { width: '100%', padding: '9px 12px', background: 'var(--color-bg)', border: '1px solid var(--color-border)', borderRadius: '7px', color: 'var(--color-text)', outline: 'none', fontSize: '13px', boxSizing: 'border-box' };
-  const lbl = { display: 'block', fontSize: '10px', fontWeight: 700, color: 'var(--color-text-muted)', marginBottom: '5px', textTransform: 'uppercase', letterSpacing: '0.5px' };
-
   return (
-    <form onSubmit={handleSubmit} style={{ marginBottom: '20px', padding: '20px', backgroundColor: 'var(--color-surface)', border: '1px solid var(--color-border)', borderRadius: '12px', display: 'flex', flexDirection: 'column', gap: '14px' }}>
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-        <h3 style={{ fontSize: '14px', fontWeight: 700, display: 'flex', alignItems: 'center', gap: '7px' }}>
-          <Plus size={15} /> New Brand
-        </h3>
-        <button type="button" onClick={onClose} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--color-text-muted)', padding: '4px', display: 'flex' }}>
-          <X size={16} />
-        </button>
+    <form onSubmit={handleSubmit} className="acc-new-brand-form">
+      <div className="acc-new-brand-head">
+        <h3><Plus size={14} /> New Brand</h3>
+        <button type="button" onClick={onClose} className="acc-icon-btn"><X size={16} /></button>
       </div>
 
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
+      <div className="acc-form-grid-2">
         <div>
-          <label style={lbl}>Brand Name *</label>
-          <input style={inp} value={name} onChange={e => setName(e.target.value)} placeholder="e.g. Apex Sport" required autoFocus />
+          <label className="acc-label">Brand Name *</label>
+          <input className="acc-input" value={name} onChange={e => setName(e.target.value)} placeholder="e.g. Apex Sport" required autoFocus />
         </div>
         <div>
-          <label style={lbl}>Industry</label>
-          <input style={inp} value={industry} onChange={e => setIndustry(e.target.value)} placeholder="Fashion, FMCG, SaaS" />
+          <label className="acc-label">Industry</label>
+          <input className="acc-input" value={industry} onChange={e => setIndustry(e.target.value)} placeholder="Fashion, FMCG, SaaS" />
         </div>
       </div>
 
       <div>
-        <label style={lbl}>Website</label>
-        <input style={inp} type="url" value={website} onChange={e => setWebsite(e.target.value)} placeholder="https://…" />
+        <label className="acc-label">Website</label>
+        <input className="acc-input" type="url" value={website} onChange={e => setWebsite(e.target.value)} placeholder="https://…" />
       </div>
 
       <div>
-        <label style={lbl}>Description</label>
-        <textarea style={{ ...inp, fontFamily: 'inherit', resize: 'vertical', minHeight: '60px' }} value={description} onChange={e => setDescription(e.target.value)} placeholder="Short note about this brand…" />
+        <label className="acc-label">Description</label>
+        <textarea
+          className="acc-input acc-textarea"
+          value={description}
+          onChange={e => setDescription(e.target.value)}
+          placeholder="Short note about this brand…"
+        />
       </div>
 
-      <div style={{ display: 'flex', gap: '24px', flexWrap: 'wrap' }}>
+      <div className="acc-form-row-wrap">
         <div>
-          <label style={lbl}>Color</label>
-          <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap' }}>
+          <label className="acc-label">Color</label>
+          <div className="acc-swatch-row">
             {PRESET_COLORS.map(c => (
-              <div key={c} onClick={() => setColor(c)} style={{ width: '22px', height: '22px', borderRadius: '50%', backgroundColor: c, cursor: 'pointer', border: color === c ? '2px solid white' : '2px solid transparent', outline: color === c ? `2px solid ${c}` : 'none' }} />
+              <div
+                key={c}
+                onClick={() => setColor(c)}
+                className={`acc-swatch ${color === c ? 'selected' : ''}`}
+                style={{ background: c, outlineColor: c }}
+              />
             ))}
           </div>
         </div>
         <div>
-          <label style={lbl}>Icon</label>
-          <div style={{ display: 'flex', gap: '4px', flexWrap: 'wrap' }}>
+          <label className="acc-label">Icon</label>
+          <div className="acc-icon-row">
             {PRESET_ICONS.map(i => (
-              <button key={i} type="button" onClick={() => setIcon(i)} style={{ fontSize: '16px', background: icon === i ? 'var(--color-surface-2)' : 'none', border: icon === i ? '2px solid var(--color-border)' : '2px solid transparent', borderRadius: '6px', padding: '3px 5px', cursor: 'pointer' }}>
-                {i}
-              </button>
+              <button
+                key={i}
+                type="button"
+                onClick={() => setIcon(i)}
+                className={`acc-icon-pick ${icon === i ? 'selected' : ''}`}
+              >{i}</button>
             ))}
           </div>
         </div>
       </div>
 
-      <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '8px' }}>
-        <button type="button" onClick={onClose} style={{ padding: '8px 16px', borderRadius: '7px', backgroundColor: 'transparent', color: 'var(--color-text-muted)', border: '1px solid var(--color-border)', fontWeight: 600, cursor: 'pointer', fontSize: '13px' }}>
-          Cancel
-        </button>
-        <button type="submit" disabled={!name.trim()} style={{ padding: '8px 18px', borderRadius: '7px', backgroundColor: '#111111', color: 'white', border: 'none', fontWeight: 700, cursor: name.trim() ? 'pointer' : 'not-allowed', opacity: name.trim() ? 1 : 0.4, fontSize: '13px' }}>
-          Create Brand
-        </button>
+      <div className="acc-form-actions">
+        <button type="button" onClick={onClose} className="acc-btn-secondary">Cancel</button>
+        <button type="submit" disabled={!name.trim()} className="acc-btn-primary">Create Brand</button>
       </div>
     </form>
   );
 }
 
-// ── Brand card (shared) ─────────────────────────────────────────────────────
-function BrandCard({ space, state, currentUser, canSubAssign }) {
-  const lists = state.lists.filter(l => l.spaceId === space.id);
-  const listIds = lists.map(l => l.id);
-  const allTasksInBrand = state.tasks.filter(t => listIds.includes(t.listId));
-
-  const isManagerOrAdmin = currentUser.role === 'Admin' || currentUser.role === 'Team Lead';
-  const myTasks = allTasksInBrand.filter(t => (t.assignees || []).includes(currentUser.id));
-  const tasksToShow = isManagerOrAdmin ? allTasksInBrand : myTasks;
-
-  const typeBreakdown = {};
-  tasksToShow.forEach(t => { if (t.type) typeBreakdown[t.type] = (typeBreakdown[t.type] || 0) + 1; });
-
-  const done    = tasksToShow.filter(t => t.status === 'Done').length;
-  const overdue = tasksToShow.filter(t => t.dueDate && new Date(t.dueDate) < new Date() && t.status !== 'Done').length;
-  const pct     = tasksToShow.length > 0 ? Math.round((done / tasksToShow.length) * 100) : 0;
-
-  const teamOnBrand = state.brandAssignments
-    .filter(b => b.spaceId === space.id)
-    .map(b => ({ ...b, member: state.members.find(m => m.id === b.profileId) }))
-    .filter(x => x.member);
-
-  return (
-    <div style={{ background: 'var(--white)', border: '1px solid var(--mid-grey)', borderRadius: '12px', padding: '16px', display: 'flex', flexDirection: 'column', gap: '14px' }}>
-      <div style={{ display: 'flex', alignItems: 'flex-start', gap: '12px' }}>
-        <div style={{ width: '40px', height: '40px', background: 'var(--text-primary)', color: 'var(--white)', borderRadius: '10px', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '20px', flexShrink: 0 }}>
-          {space.icon}
-        </div>
-        <div style={{ flex: 1, minWidth: 0 }}>
-          <div style={{ fontSize: 'var(--text-14)', fontWeight: 700, color: 'var(--text-primary)', marginBottom: '2px' }}>{space.name}</div>
-          {space.industry && <div style={{ display: 'inline-block', fontSize: '10px', fontWeight: 600, padding: '2px 8px', borderRadius: '4px', background: 'var(--light-grey)', color: 'var(--text-tertiary)', marginBottom: '4px' }}>{space.industry}</div>}
-          <div style={{ fontSize: 'var(--text-11)', color: 'var(--text-tertiary)' }}>
-            {tasksToShow.length} task{tasksToShow.length !== 1 ? 's' : ''} · {done} done
-            {overdue > 0 && <span style={{ color: 'var(--accent)', marginLeft: '4px', fontWeight: 700 }}>· {overdue} overdue</span>}
-          </div>
-        </div>
-      </div>
-
-      {space.description && (
-        <p style={{ fontSize: 'var(--text-12)', color: 'var(--text-tertiary)', lineHeight: '1.5', margin: 0 }}>{space.description}</p>
-      )}
-
-      {space.website && (
-        <a href={space.website} target="_blank" rel="noreferrer" style={{ display: 'inline-flex', alignItems: 'center', gap: '4px', fontSize: 'var(--text-10)', color: 'var(--text-tertiary)', textDecoration: 'none' }}>
-          <Globe size={11} /> {space.website.replace(/^https?:\/\//, '').replace(/\/$/, '')}
-        </a>
-      )}
-
-      <div>
-        <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 'var(--text-10)', color: 'var(--text-tertiary)', marginBottom: '6px', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.06em' }}>
-          <span>Progress</span>
-          <span>{pct}%</span>
-        </div>
-        <div style={{ height: '4px', borderRadius: '99px', background: 'var(--light-grey)', overflow: 'hidden' }}>
-          <div style={{ height: '100%', width: `${pct}%`, background: pct === 100 ? 'var(--status-done)' : 'var(--text-primary)', borderRadius: '99px', transition: 'width 0.4s' }} />
-        </div>
-      </div>
-
-      {Object.keys(typeBreakdown).length > 0 && (
-        <div>
-          <div style={{ fontSize: '10px', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.12em', color: 'var(--text-primary)', marginBottom: '8px' }}>Task Types</div>
-          <div style={{ display: 'flex', flexWrap: 'wrap', gap: '4px' }}>
-            {Object.entries(typeBreakdown).map(([type, count]) => {
-              const TypeIcon = TYPE_ICONS[type] || HelpCircle;
-              return (
-                <span key={type} style={{ display: 'inline-flex', alignItems: 'center', gap: '4px', fontSize: '10px', fontWeight: 600, padding: '2px 8px', borderRadius: '4px', color: 'var(--text-tertiary)', background: 'var(--light-grey)' }}>
-                  <TypeIcon size={10} />
-                  {type} <span style={{ opacity: 0.7 }}>× {count}</span>
-                </span>
-              );
-            })}
-          </div>
-        </div>
-      )}
-
-      {/* Team panel — Admin/Team Lead/Executive can sub-assign within this brand */}
-      {canSubAssign && (
-        <BrandTeamPanel space={space} teamOnBrand={teamOnBrand} state={state} currentUser={currentUser} />
-      )}
-    </div>
-  );
-}
-
-// ── Sub-assign team to this brand (Admin/Team Lead/Executive) ───────────────
+// ─── Sub-assign team to a brand (Admin / Team Lead / Executive) ──────────────
 function BrandTeamPanel({ space, teamOnBrand, state, currentUser }) {
   const { dispatch } = useStore();
   const [adding, setAdding] = useState(false);
   const [pickMember, setPickMember] = useState('');
   const [pickType, setPickType] = useState('');
 
-  // Hierarchy: Executive can only pick Creative Associates
   const candidateMembers = state.members.filter(m => {
     if (m.id === currentUser.id) return false;
     if (currentUser.role === 'Admin')      return m.role !== 'Admin';
@@ -226,8 +130,6 @@ function BrandTeamPanel({ space, teamOnBrand, state, currentUser }) {
     return false;
   });
 
-  // Show only assignments the current user is allowed to manage (so an
-  // Executive doesn't see/remove a Team-Lead-level assignment)
   const visibleTeam = teamOnBrand.filter(({ member }) => {
     if (currentUser.role === 'Admin' || currentUser.role === 'Team Lead') return true;
     if (currentUser.role === 'Executive') return member.role === 'Creative Associate';
@@ -240,81 +142,203 @@ function BrandTeamPanel({ space, teamOnBrand, state, currentUser }) {
     if (exists) { setAdding(false); setPickMember(''); setPickType(''); return; }
     dispatch({
       type: 'ASSIGN_BRAND',
-      payload: {
-        profileId:  pickMember,
-        spaceId:    space.id,
-        taskType:   pickType || null,
-        assignedBy: currentUser.id,
-      },
+      payload: { profileId: pickMember, spaceId: space.id, taskType: pickType || null, assignedBy: currentUser.id },
     });
     setAdding(false); setPickMember(''); setPickType('');
   };
 
   return (
-    <div style={{ paddingTop: '10px', borderTop: '1px dashed var(--color-border)' }}>
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '8px' }}>
-        <div style={{ fontSize: '11px', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.6px', color: 'var(--color-text-muted)' }}>
-          Team on This Brand
-        </div>
+    <div>
+      <div className="acc-detail-section-head">
+        <h3>Team on This Brand</h3>
         {!adding && candidateMembers.length > 0 && (
-          <button onClick={() => setAdding(true)} style={{ display: 'inline-flex', alignItems: 'center', gap: '4px', padding: '3px 9px', borderRadius: '99px', border: '1px dashed var(--color-border)', background: 'transparent', cursor: 'pointer', color: 'var(--color-text-muted)', fontSize: '11px', fontWeight: 600 }}>
+          <button onClick={() => setAdding(true)} className="acc-add-chip">
             <Plus size={11} /> Assign
           </button>
         )}
       </div>
 
       {visibleTeam.length === 0 && !adding && (
-        <p style={{ fontSize: '12px', color: 'var(--color-text-muted)', fontStyle: 'italic', margin: 0 }}>
+        <p className="acc-detail-empty">
           {currentUser.role === 'Executive' ? 'No creative associates on this brand yet.' : 'No team members on this brand yet.'}
         </p>
       )}
 
-      <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
-        {visibleTeam.map(({ id, member, taskType }) => {
-          const rs = ROLE_PILL[member.role] || { bg: 'var(--color-surface-2)', color: 'var(--color-text-muted)' };
-          const tc = TYPE_COLORS[taskType] || null;
-          return (
-            <div key={id} style={{ display: 'flex', alignItems: 'center', gap: '10px', padding: '7px 10px', backgroundColor: 'var(--color-bg)', borderRadius: '8px', border: '1px solid var(--color-border)' }}>
-              <img src={member.avatar} alt={member.name} style={{ width: '24px', height: '24px', borderRadius: '50%', flexShrink: 0 }} />
-              <div style={{ flex: 1, minWidth: 0, display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
-                <span style={{ fontSize: '13px', fontWeight: 600 }}>{member.name}</span>
-                <span style={{ fontSize: '10px', fontWeight: 700, padding: '2px 8px', borderRadius: '99px', backgroundColor: rs.bg, color: rs.color }}>{member.role}</span>
-                {taskType && tc && (
-                  <span style={{ fontSize: '10px', fontWeight: 700, padding: '2px 8px', borderRadius: '99px', backgroundColor: tc.bg, color: tc.color }}>{taskType}</span>
-                )}
-              </div>
-              <button onClick={() => dispatch({ type: 'UNASSIGN_BRAND', payload: { id } })} title="Remove" style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--color-text-muted)', padding: '3px', display: 'flex', alignItems: 'center', borderRadius: '50%' }}
-                onMouseEnter={e => e.currentTarget.style.color = '#b20f00'}
-                onMouseLeave={e => e.currentTarget.style.color = 'var(--color-text-muted)'}
-              ><X size={12} /></button>
+      <div className="acc-team-list">
+        {visibleTeam.map(({ id, member, taskType }) => (
+          <div key={id} className="acc-team-row">
+            <img src={member.avatar} alt={member.name} className="acc-team-avatar" />
+            <div className="acc-team-info">
+              <span className="acc-team-name">{member.name}</span>
+              <span className="acc-team-role">{member.role}{taskType ? ` · ${taskType}` : ''}</span>
             </div>
-          );
-        })}
+            <button
+              onClick={() => dispatch({ type: 'UNASSIGN_BRAND', payload: { id } })}
+              title="Remove"
+              className="acc-icon-btn danger"
+            ><X size={12} /></button>
+          </div>
+        ))}
       </div>
 
       {adding && (
-        <div style={{ display: 'flex', gap: '6px', marginTop: '8px', flexWrap: 'wrap' }}>
-          <select value={pickMember} onChange={e => setPickMember(e.target.value)} style={{ flex: '1 1 auto', minWidth: '140px', padding: '6px 10px', border: '1px solid var(--color-border)', borderRadius: '7px', fontSize: '12px', background: 'var(--color-surface)', color: 'var(--color-text)', outline: 'none' }}>
+        <div className="acc-assign-row">
+          <select value={pickMember} onChange={e => setPickMember(e.target.value)} className="acc-mini-select">
             <option value="">Pick member…</option>
             {candidateMembers.map(m => <option key={m.id} value={m.id}>{m.name} · {m.role}</option>)}
           </select>
-          <select value={pickType} onChange={e => setPickType(e.target.value)} style={{ width: '110px', padding: '6px 10px', border: '1px solid var(--color-border)', borderRadius: '7px', fontSize: '12px', background: 'var(--color-surface)', color: 'var(--color-text)', outline: 'none' }}>
+          <select value={pickType} onChange={e => setPickType(e.target.value)} className="acc-mini-select acc-type-select">
             <option value="">All types</option>
             {TASK_TYPES.map(t => <option key={t} value={t}>{t}</option>)}
           </select>
-          <button onClick={handleAdd} disabled={!pickMember} style={{ padding: '6px 12px', background: '#111111', color: 'white', border: 'none', borderRadius: '7px', fontWeight: 700, fontSize: '12px', cursor: pickMember ? 'pointer' : 'not-allowed', opacity: pickMember ? 1 : 0.4 }}>Add</button>
-          <button onClick={() => { setAdding(false); setPickMember(''); setPickType(''); }} style={{ padding: '6px 8px', background: 'var(--color-surface-2)', color: 'var(--color-text-muted)', border: 'none', borderRadius: '7px', cursor: 'pointer', display: 'flex', alignItems: 'center' }}><X size={13} /></button>
+          <button onClick={handleAdd} disabled={!pickMember} className="acc-btn-primary acc-btn-small">Add</button>
+          <button onClick={() => { setAdding(false); setPickMember(''); setPickType(''); }} className="acc-icon-btn"><X size={12} /></button>
         </div>
       )}
     </div>
   );
 }
 
-// ── Root export ─────────────────────────────────────────────────────────────
+// ─── Brand detail slide-over ─────────────────────────────────────────────────
+function BrandDetail({ space, state, currentUser, onClose, canSubAssign, canDelete }) {
+  const { dispatch } = useStore();
+  const { setSelectedTaskId } = useUI();
+
+  const lists = state.lists.filter(l => l.spaceId === space.id);
+  const listIds = lists.map(l => l.id);
+  const allTasksInBrand = state.tasks.filter(t => listIds.includes(t.listId));
+  const isManagerOrAdmin = currentUser.role === 'Admin' || currentUser.role === 'Team Lead';
+  const myTasks = allTasksInBrand.filter(t => (t.assignees || []).includes(currentUser.id));
+  const tasksToShow = isManagerOrAdmin ? allTasksInBrand : myTasks;
+
+  const teamOnBrand = state.brandAssignments
+    .filter(b => b.spaceId === space.id)
+    .map(b => ({ ...b, member: state.members.find(m => m.id === b.profileId) }))
+    .filter(x => x.member);
+
+  const open = tasksToShow.filter(t => t.status !== 'Done');
+  const done = tasksToShow.filter(t => t.status === 'Done').length;
+  const overdue = tasksToShow.filter(t => t.dueDate && new Date(t.dueDate) < new Date() && t.status !== 'Done').length;
+
+  const handleDelete = () => {
+    const tasksInBrand = allTasksInBrand.length;
+    if (!window.confirm(`Delete brand "${space.name}"?\n\nThis will permanently delete:\n- ${lists.length} list(s)\n- ${tasksInBrand} task(s)\n- All brand assignments\n\nThis cannot be undone.`)) return;
+    dispatch({ type: 'DELETE_SPACE', payload: { spaceId: space.id } });
+    onClose();
+  };
+
+  return (
+    <div className="acc-detail-scrim" onClick={onClose}>
+      <div className="acc-detail-panel" onClick={e => e.stopPropagation()}>
+        {/* Header */}
+        <div className="acc-detail-header">
+          <div className="acc-detail-id">
+            <div className="acc-detail-icon" style={{ background: space.color || 'var(--text-primary)' }}>{space.icon || '🏷️'}</div>
+            <div>
+              <h2>{space.name}</h2>
+              {space.industry && <p className="acc-detail-industry">{space.industry}</p>}
+            </div>
+          </div>
+          <div className="acc-detail-actions">
+            {canDelete && (
+              <button onClick={handleDelete} title="Delete brand" className="acc-icon-btn danger">
+                <Trash2 size={16} />
+              </button>
+            )}
+            <button onClick={onClose} className="acc-icon-btn"><X size={18} /></button>
+          </div>
+        </div>
+
+        <div className="acc-detail-body">
+          {/* Quick stats */}
+          <div className="acc-detail-stats">
+            <div className="acc-detail-stat">
+              <p className="acc-stat-val">{open.length}</p>
+              <p className="acc-stat-lbl">Open Tasks</p>
+            </div>
+            <div className={`acc-detail-stat ${overdue > 0 ? 'danger' : ''}`}>
+              <p className="acc-stat-val">{overdue}</p>
+              <p className="acc-stat-lbl">Overdue</p>
+            </div>
+            <div className="acc-detail-stat">
+              <p className="acc-stat-val">{done}</p>
+              <p className="acc-stat-lbl">Done</p>
+            </div>
+          </div>
+
+          {/* Details */}
+          {(space.description || space.website) && (
+            <div>
+              <h3 className="acc-detail-section-title">Details</h3>
+              {space.description && <p className="acc-detail-desc">{space.description}</p>}
+              {space.website && (
+                <a href={space.website} target="_blank" rel="noreferrer" className="acc-detail-link">
+                  <Globe size={12} /> {space.website.replace(/^https?:\/\//, '').replace(/\/$/, '')}
+                </a>
+              )}
+            </div>
+          )}
+
+          {/* Team panel — Admin/Team Lead/Executive can sub-assign */}
+          {canSubAssign && (
+            <BrandTeamPanel
+              space={space}
+              teamOnBrand={teamOnBrand}
+              state={state}
+              currentUser={currentUser}
+            />
+          )}
+
+          {/* Open tasks */}
+          <div>
+            <div className="acc-detail-section-head">
+              <h3>Open Tasks ({open.length})</h3>
+            </div>
+            {open.length === 0 ? (
+              <p className="acc-detail-empty">No open tasks.</p>
+            ) : (
+              <div className="acc-detail-tasks">
+                {open.slice(0, 8).map(task => {
+                  const assignee = state.members.find(m => m.id === (task.assignees || [])[0]);
+                  const isOverdue = task.dueDate && new Date(task.dueDate) < new Date();
+                  return (
+                    <button
+                      key={task.id}
+                      onClick={() => { setSelectedTaskId(task.id); onClose(); }}
+                      className="acc-detail-task"
+                    >
+                      <div className={`acc-task-pri pri-${(task.priority || 'Normal').toLowerCase()}`} />
+                      <div className="acc-detail-task-info">
+                        <p className="acc-detail-task-title">{task.title}</p>
+                      </div>
+                      {assignee && (
+                        <img src={assignee.avatar} alt={assignee.name} title={assignee.name} className="acc-detail-task-avatar" />
+                      )}
+                      {task.dueDate && (
+                        <span className={`acc-detail-task-due ${isOverdue ? 'overdue' : ''}`}>
+                          {new Date(task.dueDate).toLocaleDateString([], { day: 'numeric', month: 'short' })}
+                        </span>
+                      )}
+                    </button>
+                  );
+                })}
+              </div>
+            )}
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ─── Root export ─────────────────────────────────────────────────────────────
 export default function AccountsView() {
   const { state } = useStore();
   const { currentUser } = useUI();
   const [showNewBrand, setShowNewBrand] = useState(false);
+  const [search, setSearch] = useState('');
+  const [industryFilter, setIndustryFilter] = useState('all');
+  const [selectedSpaceId, setSelectedSpaceId] = useState(null);
 
   if (!currentUser) return null;
 
@@ -323,15 +347,12 @@ export default function AccountsView() {
   const isExecutive = currentUser.role === 'Executive';
 
   const canCreateBrands = isAdmin || isTeamLead;
-  // Admin/Team Lead/Executive can sub-assign team members within a brand
   const canSubAssign    = isAdmin || isTeamLead || isExecutive;
 
-  // Brands assigned directly to this user
+  // Brand visibility (preserved exactly from previous implementation)
   const myAssignedSpaceIds = new Set(
     state.brandAssignments.filter(b => b.profileId === currentUser.id).map(b => b.spaceId)
   );
-
-  // Brands the user has tasks in (fallback)
   const taskBasedSpaceIds = new Set();
   state.tasks
     .filter(t => (t.assignees || []).includes(currentUser.id) || t.assignedBy === currentUser.id)
@@ -340,13 +361,43 @@ export default function AccountsView() {
       if (list) taskBasedSpaceIds.add(list.spaceId);
     });
 
-  // Admin & Team Lead see all brands. Executive & Creative Associate see assigned + task-related.
-  let visibleSpaces;
-  if (isAdmin || isTeamLead) {
-    visibleSpaces = state.spaces;
-  } else {
-    visibleSpaces = state.spaces.filter(sp => myAssignedSpaceIds.has(sp.id) || taskBasedSpaceIds.has(sp.id));
-  }
+  const baseBrands = (isAdmin || isTeamLead)
+    ? state.spaces
+    : state.spaces.filter(sp => myAssignedSpaceIds.has(sp.id) || taskBasedSpaceIds.has(sp.id));
+
+  // Filters
+  const industries = useMemo(() => {
+    const set = new Set(baseBrands.map(b => b.industry).filter(Boolean));
+    return ['all', ...Array.from(set)];
+  }, [baseBrands]);
+
+  const visibleBrands = baseBrands
+    .filter(sp => industryFilter === 'all' || sp.industry === industryFilter)
+    .filter(sp =>
+      search === '' ||
+      sp.name.toLowerCase().includes(search.toLowerCase()) ||
+      (sp.industry || '').toLowerCase().includes(search.toLowerCase())
+    );
+
+  // Per-brand metrics
+  const getBrandMetrics = (sp) => {
+    const listIds = state.lists.filter(l => l.spaceId === sp.id).map(l => l.id);
+    const allTasksInBrand = state.tasks.filter(t => listIds.includes(t.listId));
+    const myTasks = allTasksInBrand.filter(t => (t.assignees || []).includes(currentUser.id));
+    const tasksToCount = (isAdmin || isTeamLead) ? allTasksInBrand : myTasks;
+    const open = tasksToCount.filter(t => t.status !== 'Done').length;
+    const done = tasksToCount.filter(t => t.status === 'Done').length;
+    const overdue = tasksToCount.filter(t => t.dueDate && new Date(t.dueDate) < new Date() && t.status !== 'Done').length;
+    const total = tasksToCount.length;
+    const pct = total > 0 ? Math.round((done / total) * 100) : 0;
+    const teamOnBrand = state.brandAssignments
+      .filter(b => b.spaceId === sp.id)
+      .map(b => state.members.find(m => m.id === b.profileId))
+      .filter(Boolean);
+    return { open, done, overdue, total, pct, teamOnBrand };
+  };
+
+  const selectedSpace = selectedSpaceId ? state.spaces.find(s => s.id === selectedSpaceId) : null;
 
   return (
     <div className="accounts-view">
@@ -354,19 +405,42 @@ export default function AccountsView() {
         <div>
           <h2 className="accounts-title">{(isAdmin || isTeamLead) ? 'All Brands' : 'My Brands'}</h2>
           <p className="accounts-sub">
-            {visibleSpaces.length} brand{visibleSpaces.length !== 1 ? 's' : ''}
+            {baseBrands.length} brand{baseBrands.length !== 1 ? 's' : ''}
             {!isAdmin && !isTeamLead && ' assigned to you'}
-            {canSubAssign && ' · you can sub-assign team members per brand'}
+            {canSubAssign && ' · click a row to assign team members'}
           </p>
         </div>
 
         {canCreateBrands && !showNewBrand && (
           <button
             onClick={() => setShowNewBrand(true)}
-            style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', padding: '9px 16px', backgroundColor: '#111111', color: 'white', border: 'none', borderRadius: '8px', fontWeight: 700, fontSize: '13px', cursor: 'pointer', flexShrink: 0 }}
+            className="acc-btn-primary"
           >
             <Plus size={14} /> New Brand
           </button>
+        )}
+      </div>
+
+      {/* Filters */}
+      <div className="accounts-filters">
+        <div className="acc-search-wrap">
+          <Search size={14} className="acc-search-icon" />
+          <input
+            type="text"
+            placeholder="Search brands…"
+            value={search}
+            onChange={e => setSearch(e.target.value)}
+            className="acc-search-input"
+          />
+        </div>
+        {industries.length > 2 && (
+          <select
+            value={industryFilter}
+            onChange={e => setIndustryFilter(e.target.value)}
+            className="acc-industry-select"
+          >
+            {industries.map(i => <option key={i} value={i}>{i === 'all' ? 'All Industries' : i}</option>)}
+          </select>
         )}
       </div>
 
@@ -374,28 +448,89 @@ export default function AccountsView() {
         <NewBrandForm onClose={() => setShowNewBrand(false)} currentUser={currentUser} />
       )}
 
-      {visibleSpaces.length === 0 ? (
-        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '12px', padding: '80px 20px', color: 'var(--color-text-muted)', fontSize: '14px', textAlign: 'center' }}>
-          {(isAdmin || isTeamLead) ? <Briefcase size={40} style={{ opacity: 0.2 }} /> : <User size={40} style={{ opacity: 0.2 }} />}
-          <div>
-            <p style={{ margin: 0, fontWeight: 600 }}>No brands {canCreateBrands ? 'yet' : 'assigned yet'}.</p>
-            <p style={{ margin: '6px 0 0', fontSize: '12px' }}>
-              {canCreateBrands ? 'Click "New Brand" to add one.' : 'Ask your admin or team lead to assign brands to your account.'}
-            </p>
-          </div>
+      {/* Table */}
+      {visibleBrands.length === 0 ? (
+        <div className="acc-empty">
+          {(isAdmin || isTeamLead) ? <Briefcase size={32} /> : <Building2 size={32} />}
+          <p className="acc-empty-title">No brands {canCreateBrands ? 'yet' : 'assigned yet'}.</p>
+          <p className="acc-empty-sub">
+            {canCreateBrands ? 'Click "New Brand" to add one.' : 'Ask your admin or team lead to assign brands to your account.'}
+          </p>
         </div>
       ) : (
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(320px, 1fr))', gap: '16px', paddingBottom: '40px' }}>
-          {visibleSpaces.map(space => (
-            <BrandCard
-              key={space.id}
-              space={space}
-              state={state}
-              currentUser={currentUser}
-              canSubAssign={canSubAssign}
-            />
-          ))}
+        <div className="acc-table-wrap">
+          <table className="acc-table">
+            <thead>
+              <tr>
+                <th>Brand</th>
+                <th>Industry</th>
+                <th>Open</th>
+                <th>Team</th>
+                <th>Progress</th>
+                <th></th>
+              </tr>
+            </thead>
+            <tbody>
+              {visibleBrands.map(sp => {
+                const m = getBrandMetrics(sp);
+                return (
+                  <tr key={sp.id} onClick={() => setSelectedSpaceId(sp.id)} className="acc-row">
+                    <td>
+                      <div className="acc-brand-cell">
+                        <div className="acc-brand-icon" style={{ background: sp.color || 'var(--text-primary)' }}>
+                          {sp.icon || sp.name.slice(0, 2).toUpperCase()}
+                        </div>
+                        <div className="acc-brand-meta">
+                          <p className="acc-brand-name">{sp.name}</p>
+                          {sp.website && <p className="acc-brand-website">{sp.website.replace(/^https?:\/\//, '').replace(/\/$/, '')}</p>}
+                        </div>
+                      </div>
+                    </td>
+                    <td className="acc-cell-muted">{sp.industry || '—'}</td>
+                    <td>
+                      <div className="acc-open-count">
+                        <span className="acc-open-num">{m.open}</span>
+                        {m.overdue > 0 && <span className="acc-overdue-pill">{m.overdue} late</span>}
+                      </div>
+                    </td>
+                    <td>
+                      <div className="acc-team-stack">
+                        {m.teamOnBrand.slice(0, 4).map(p => (
+                          <img key={p.id} src={p.avatar} alt={p.name} title={p.name} className="acc-team-mini" />
+                        ))}
+                        {m.teamOnBrand.length > 4 && (
+                          <div className="acc-team-mini acc-team-overflow">+{m.teamOnBrand.length - 4}</div>
+                        )}
+                        {m.teamOnBrand.length === 0 && <span className="acc-cell-faint">—</span>}
+                      </div>
+                    </td>
+                    <td>
+                      <div className="acc-progress-cell">
+                        <div className="acc-progress-bar">
+                          <div className="acc-progress-fill" style={{ width: `${m.pct}%`, background: m.pct === 100 ? 'var(--status-done)' : 'var(--text-primary)' }} />
+                        </div>
+                        <span className="acc-progress-pct">{m.pct}%</span>
+                      </div>
+                    </td>
+                    <td className="acc-row-arrow-cell"><ArrowUpRight size={12} /></td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
         </div>
+      )}
+
+      {/* Slide-over detail */}
+      {selectedSpace && (
+        <BrandDetail
+          space={selectedSpace}
+          state={state}
+          currentUser={currentUser}
+          onClose={() => setSelectedSpaceId(null)}
+          canSubAssign={canSubAssign}
+          canDelete={isAdmin}
+        />
       )}
     </div>
   );
