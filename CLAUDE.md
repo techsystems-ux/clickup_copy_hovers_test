@@ -36,7 +36,9 @@ Four roles, ordered by privilege:
 | **Executive**        | ExecutorDashboard (Tasks page)           | Creative Associate only                        |
 | **Creative Associate** | ExecutorDashboard (Tasks page)         | nobody (Topbar "+ New Task" button is hidden)  |
 
-`isManager = role === 'Admin' || role === 'Team Lead'` — used in `App.jsx`, `HomeView.jsx`, `KnowledgeBaseView.jsx`.
+`isManager = role === 'Admin' || role === 'Team Lead'` — used in `App.jsx`, `HomeView.jsx`.
+
+`KnowledgeBaseView.jsx` uses a different rule: the rich Content-Map KB is shown to everyone *except* Creative Associates (i.e. Admin / Team Lead / Executive see the same articles). Creative Associates see the brand-style-guide (`BRAND_GUIDELINES`) view instead.
 
 The hierarchy is enforced in three places:
 - `NewTaskModal.jsx` — `executors` filter shows only assignable members for the current user.

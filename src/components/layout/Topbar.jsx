@@ -1,60 +1,86 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { useUI } from '../../store/UIContext';
-import { Plus, LogOut, Settings } from 'lucide-react';
+import { Plus, Search, LogOut, Settings as SettingsIcon } from 'lucide-react';
 import './Topbar.css';
+
+const PAGE_TITLES = {
+  Home:          'Home',
+  Accounts:      'Accounts',
+  Tasks:         'Tasks',
+  KnowledgeBase: 'Knowledge Base',
+  Settings:      'Settings',
+};
 
 export default function Topbar() {
   const { activePage, setActivePage, setNewTaskModalOpen, currentUser, signOut } = useUI();
+  const [searchOpen, setSearchOpen] = useState(false);
+  const [profileOpen, setProfileOpen] = useState(false);
 
-  const pageLabels = { Team: 'My Team', Settings: 'Settings' };
+  const title = PAGE_TITLES[activePage] || activePage;
+  const initials = (currentUser?.name || currentUser?.email || '?')
+    .split(/\s+/).map(w => w[0]).join('').slice(0, 2).toUpperCase();
 
   return (
     <header className="topbar">
-      <div className="topbar-left">
-        <div className="breadcrumbs">
-          <span className="breadcrumb-item active">{pageLabels[activePage] ?? activePage}</span>
-        </div>
+      <div className="hv-topbar-left">
+        <h1 className="hv-page-title">{title}</h1>
       </div>
 
-      <div className="topbar-right">
+      <div className="hv-topbar-right">
+        {searchOpen ? (
+          <div className="hv-search-wrap">
+            <Search size={14} className="hv-search-icon" />
+            <input
+              autoFocus
+              type="text"
+              placeholder="Search…"
+              onBlur={() => setSearchOpen(false)}
+              className="hv-search-input"
+            />
+          </div>
+        ) : (
+          <button className="hv-icon-btn" onClick={() => setSearchOpen(true)} title="Search">
+            <Search size={16} />
+          </button>
+        )}
+
         {activePage !== 'Settings' && currentUser?.role !== 'Creative Associate' && (
-          <button className="new-task-btn" onClick={() => setNewTaskModalOpen(true)}>
-            <Plus size={16} />
+          <button className="hv-new-task-btn" onClick={() => setNewTaskModalOpen(true)}>
+            <Plus size={14} />
             New Task
           </button>
         )}
 
-        <div className="user-avatar" style={{ position: 'relative' }}>
-          <img
-            src={currentUser?.avatar || 'https://i.pravatar.cc/150?u=1'}
-            alt="User"
-            style={{ cursor: 'pointer' }}
-            onClick={() => {
-              const menu = document.getElementById('profile-menu');
-              menu.style.display = menu.style.display === 'block' ? 'none' : 'block';
-            }}
-          />
-          <div
-            id="profile-menu"
-            style={{ display: 'none', position: 'absolute', top: '40px', right: '0', backgroundColor: 'var(--color-surface)', border: '1px solid var(--color-border)', borderRadius: '8px', width: '200px', boxShadow: '0 10px 25px rgba(0,0,0,0.5)', zIndex: 999 }}
-          >
-            <div style={{ padding: '12px 16px', borderBottom: '1px solid var(--color-border)' }}>
-              <div style={{ fontWeight: 'bold', fontSize: '14px', color: 'white' }}>{currentUser?.name}</div>
-              <div style={{ fontSize: '12px', color: 'var(--color-text-muted)' }}>{currentUser?.role}</div>
-            </div>
-            <button
-              onClick={() => { setActivePage('Settings'); document.getElementById('profile-menu').style.display = 'none'; }}
-              style={{ width: '100%', padding: '12px 16px', textAlign: 'left', backgroundColor: 'transparent', border: 'none', color: 'var(--color-text)', cursor: 'pointer', borderBottom: '1px solid var(--color-border)', display: 'flex', alignItems: 'center', gap: '8px', fontSize: '14px' }}
-            >
-              <Settings size={14} /> Settings
-            </button>
-            <button
-              onClick={() => { signOut(); document.getElementById('profile-menu').style.display = 'none'; }}
-              style={{ width: '100%', padding: '12px 16px', textAlign: 'left', backgroundColor: 'transparent', border: 'none', color: 'var(--color-accent)', cursor: 'pointer', fontWeight: 'bold', display: 'flex', alignItems: 'center', gap: '8px', fontSize: '14px' }}
-            >
-              <LogOut size={14} /> Log Out
-            </button>
-          </div>
+        <div className="hv-profile-wrap">
+          <button className="hv-profile-trigger" onClick={() => setProfileOpen(p => !p)}>
+            {currentUser?.avatar
+              ? <img src={currentUser.avatar} alt={currentUser.name} />
+              : <span>{initials}</span>}
+          </button>
+
+          {profileOpen && (
+            <>
+              <div className="hv-profile-scrim" onClick={() => setProfileOpen(false)} />
+              <div className="hv-profile-menu">
+                <div className="hv-profile-header">
+                  <p className="hv-profile-name">{currentUser?.name}</p>
+                  <p className="hv-profile-role">{currentUser?.role}</p>
+                </div>
+                <button
+                  className="hv-profile-item"
+                  onClick={() => { setActivePage('Settings'); setProfileOpen(false); }}
+                >
+                  <SettingsIcon size={14} /> Settings
+                </button>
+                <button
+                  className="hv-profile-item danger"
+                  onClick={() => { signOut(); setProfileOpen(false); }}
+                >
+                  <LogOut size={14} /> Log Out
+                </button>
+              </div>
+            </>
+          )}
         </div>
       </div>
     </header>

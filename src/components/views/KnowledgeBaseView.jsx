@@ -1,253 +1,540 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import { useStore } from '../../store/StoreContext';
 import { useUI } from '../../store/UIContext';
-import { Search, BookOpen, FileText, Zap, Shield, Users, Megaphone, ChevronRight, Check, X, Type } from 'lucide-react';
+import {
+  Search, BookOpen, FileText, ChevronDown, ChevronRight, ChevronUp,
+  X, ArrowLeft, Clock, Hash, Filter, LayoutGrid, Check,
+  Type,
+} from 'lucide-react';
 import { BRAND_GUIDELINES } from '../../store/MockData';
+import { KB_TOPICS, getAllPosts, getAllTags } from '../../store/kb-data';
 import './KnowledgeBaseView.css';
 
-// ─── Agency-relevant articles for manager view ───────────────────────────────
-const ARTICLES = [
-  {
-    id: 'k1', category: 'Getting Started', icon: Zap,
-    articles: [
-      { id: 'a1', title: 'Welcome to Hovers Agency workspace', reads: 142, updated: '2 days ago' },
-      { id: 'a2', title: 'Setting up your profile',             reads: 98,  updated: '1 week ago' },
-      { id: 'a3', title: 'Navigating the dashboard',           reads: 76,  updated: '3 days ago' },
-    ]
-  },
-  {
-    id: 'k2', category: 'Tasks & Projects', icon: FileText,
-    articles: [
-      { id: 'a4', title: 'Creating and assigning tasks',     reads: 210, updated: 'Yesterday'  },
-      { id: 'a5', title: 'Board and list view guide',        reads: 155, updated: '4 days ago' },
-      { id: 'a6', title: 'Priority and status definitions',  reads: 88,  updated: '1 week ago' },
-      { id: 'a7', title: 'Time tracking for creatives',      reads: 63,  updated: '5 days ago' },
-    ]
-  },
-  {
-    id: 'k3', category: 'Team Management', icon: Users,
-    articles: [
-      { id: 'a8',  title: 'Managing roles and permissions', reads: 64, updated: '5 days ago'  },
-      { id: 'a9',  title: 'Inviting new team members',      reads: 51, updated: '2 weeks ago' },
-      { id: 'a10', title: 'Setting availability statuses',  reads: 38, updated: '1 week ago'  },
-    ]
-  },
-  {
-    id: 'k4', category: 'Campaign Operations', icon: Megaphone,
-    articles: [
-      { id: 'a11', title: 'Campaign briefing template',           reads: 180, updated: '3 days ago' },
-      { id: 'a12', title: 'Creative review & approval workflow',  reads: 130, updated: '1 week ago' },
-      { id: 'a13', title: 'Deliverables handoff checklist',       reads: 95,  updated: '4 days ago' },
-    ]
-  },
-  {
-    id: 'k5', category: 'Compliance & Access', icon: Shield,
-    articles: [
-      { id: 'a14', title: 'Data handling and privacy policy', reads: 39, updated: '1 week ago'  },
-      { id: 'a15', title: 'Client asset storage guidelines',  reads: 27, updated: '3 weeks ago' },
-    ]
-  },
-];
+function cls(...args) { return args.filter(Boolean).join(' '); }
 
-// ─── Manager knowledge base ──────────────────────────────────────────────────
-function ManagerKnowledgeBase() {
-  const [query, setQuery] = useState('');
+// ─── Markdown renderer (ports hovers-os renderMarkdown) ──────────────────────
+function renderMarkdown(content) {
+  const lines = content.split('\n');
+  const elements = [];
 
-  const filtered = ARTICLES.map(cat => ({
-    ...cat,
-    articles: cat.articles.filter(a =>
-      a.title.toLowerCase().includes(query.toLowerCase()) ||
-      cat.category.toLowerCase().includes(query.toLowerCase())
-    )
-  })).filter(cat => cat.articles.length > 0);
+  lines.forEach((line, i) => {
+    if (line.startsWith('# ')) {
+      elements.push(<h1 key={i} className="kb-md-h1">{line.slice(2)}</h1>);
+    } else if (line.startsWith('## ')) {
+      elements.push(<h2 key={i} className="kb-md-h2">{line.slice(3)}</h2>);
+    } else if (line.startsWith('### ')) {
+      elements.push(<h3 key={i} className="kb-md-h3">{line.slice(4)}</h3>);
+    } else if (line.startsWith('- [ ] ')) {
+      elements.push(
+        <label key={i} className="kb-md-checkbox">
+          <input type="checkbox" />
+          <span>{line.slice(6)}</span>
+        </label>
+      );
+    } else if (line.startsWith('- [x] ')) {
+      elements.push(
+        <label key={i} className="kb-md-checkbox done">
+          <input type="checkbox" defaultChecked readOnly />
+          <span>{line.slice(6)}</span>
+        </label>
+      );
+    } else if (line.startsWith('- ')) {
+      elements.push(<li key={i} className="kb-md-li">{renderInline(line.slice(2))}</li>);
+    } else if (line.startsWith('> ')) {
+      elements.push(<blockquote key={i} className="kb-md-quote">{line.slice(2)}</blockquote>);
+    } else if (line.startsWith('|')) {
+      if (i === 0 || !lines[i - 1]?.startsWith('|')) {
+        const tableLines = [];
+        let j = i;
+        while (j < lines.length && lines[j].startsWith('|')) {
+          tableLines.push(lines[j]);
+          j++;
+        }
+        elements.push(renderTable(tableLines, i));
+      }
+    } else if (line.trim() === '') {
+      elements.push(<div key={i} className="kb-md-spacer" />);
+    } else if (line.trim() === '---') {
+      elements.push(<hr key={i} className="kb-md-hr" />);
+    } else {
+      elements.push(<p key={i} className="kb-md-p">{renderInline(line)}</p>);
+    }
+  });
 
-  const totalArticles = ARTICLES.reduce((s, c) => s + c.articles.length, 0);
+  return <div>{elements}</div>;
+}
+
+function renderInline(text) {
+  const parts = text.split(/(\*\*.*?\*\*|`.*?`)/g);
+  return parts.map((part, i) => {
+    if (part.startsWith('**') && part.endsWith('**')) {
+      return <strong key={i} className="kb-md-strong">{part.slice(2, -2)}</strong>;
+    }
+    if (part.startsWith('`') && part.endsWith('`')) {
+      return <code key={i} className="kb-md-code">{part.slice(1, -1)}</code>;
+    }
+    return <span key={i}>{part}</span>;
+  });
+}
+
+function renderTable(lines, keyBase) {
+  const rows = lines
+    .filter(l => !l.match(/^\|[\s\-|]+\|$/))
+    .map(l => l.split('|').filter(Boolean).map(cell => cell.trim()));
+
+  if (rows.length === 0) return null;
+  const header = rows[0];
+  const body = rows.slice(1);
 
   return (
-    <div className="kb-view">
-      <div className="kb-header">
-        <div className="kb-header-icon"><BookOpen size={28} /></div>
-        <div>
-          <h2 className="kb-title">Knowledge Base</h2>
-          <p className="kb-sub">{totalArticles} articles across {ARTICLES.length} categories</p>
-        </div>
-      </div>
+    <div key={keyBase} className="kb-md-table-wrap">
+      <table className="kb-md-table">
+        <thead>
+          <tr>{header.map((cell, i) => <th key={i}>{cell}</th>)}</tr>
+        </thead>
+        <tbody>
+          {body.map((row, i) => (
+            <tr key={i}>{row.map((cell, j) => <td key={j}>{renderInline(cell)}</td>)}</tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
+  );
+}
 
-      <div className="kb-search-wrap">
-        <Search size={16} />
-        <input
-          className="kb-search"
-          value={query}
-          onChange={e => setQuery(e.target.value)}
-          placeholder="Search articles and categories…"
-        />
-      </div>
+// ─── Full KB — Content Map + Article views (Admin, Team Lead, Executive) ────
+function FullKnowledgeBase() {
+  const [view, setView] = useState('content-map');
+  const [selectedPost, setSelectedPost] = useState(null);
+  const [searchQuery, setSearchQuery] = useState('');
+  const [searchFocused, setSearchFocused] = useState(false);
+  const [collapsedTopics, setCollapsedTopics] = useState(() => new Set());
+  const [collapsedSections, setCollapsedSections] = useState(() => new Set());
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(() => new Set());
+  const [activeTopicFilter, setActiveTopicFilter] = useState(null);
+  const [activeTagFilter, setActiveTagFilter] = useState(null);
+  const [showFilters, setShowFilters] = useState(false);
 
-      <div className="kb-categories">
-        {filtered.map(cat => {
-          const Icon = cat.icon;
-          return (
-            <div key={cat.id} className="kb-category">
-              <div className="kb-cat-header">
-                <div className="kb-cat-icon"><Icon size={16} /></div>
-                <span className="kb-cat-name">{cat.category}</span>
-                <span className="kb-cat-count">{cat.articles.length}</span>
-              </div>
-              <div className="kb-articles">
-                {cat.articles.map(article => (
-                  <div key={article.id} className="kb-article-row">
-                    <div className="kb-article-info">
-                      <FileText size={13} style={{ flexShrink: 0, color: 'var(--color-text-muted)' }} />
-                      <span className="kb-article-title">{article.title}</span>
-                    </div>
-                    <div className="kb-article-meta">
-                      <span className="kb-article-reads">{article.reads} reads</span>
-                      <span className="kb-article-updated">{article.updated}</span>
-                      <ChevronRight size={14} style={{ color: 'var(--color-text-muted)' }} />
-                    </div>
-                  </div>
+  const allPosts = useMemo(() => getAllPosts(), []);
+  const allTags = useMemo(() => getAllTags(), []);
+
+  const searchResults = searchQuery.length > 1
+    ? allPosts.filter(p =>
+        p.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        p.tags.some(t => t.includes(searchQuery.toLowerCase())) ||
+        (p.content || '').toLowerCase().includes(searchQuery.toLowerCase())
+      )
+    : [];
+
+  function openPost(post, topicName, topicColor, sectionTitle) {
+    setSelectedPost({ ...post, topicName, topicColor, sectionTitle });
+    setView('article');
+    setSearchQuery('');
+  }
+
+  function toggleSection(sectionId) {
+    setCollapsedSections(prev => {
+      const next = new Set(prev);
+      next.has(sectionId) ? next.delete(sectionId) : next.add(sectionId);
+      return next;
+    });
+  }
+
+  function toggleSidebarTopic(topicId) {
+    setSidebarCollapsed(prev => {
+      const next = new Set(prev);
+      next.has(topicId) ? next.delete(topicId) : next.add(topicId);
+      return next;
+    });
+  }
+
+  const filteredTopics = activeTopicFilter
+    ? KB_TOPICS.filter(t => t.id === activeTopicFilter)
+    : KB_TOPICS;
+
+  // ===================== ARTICLE VIEW =====================
+  if (view === 'article' && selectedPost) {
+    const currentTopic = KB_TOPICS.find(t => t.name === selectedPost.topicName);
+
+    return (
+      <div className="kb-shell">
+        {/* Article Sidebar */}
+        <aside className="kb-article-sidebar">
+          <div className="kb-article-sidebar-top">
+            <button
+              onClick={() => { setView('content-map'); setSelectedPost(null); }}
+              className="kb-back-link"
+            >
+              <ArrowLeft size={12} />
+              Content Map
+            </button>
+          </div>
+
+          <div className="kb-article-topic-strip">
+            <span className="kb-topic-dot" style={{ background: selectedPost.topicColor }} />
+            <span>{selectedPost.topicName}</span>
+          </div>
+
+          <nav className="kb-article-nav">
+            {currentTopic?.sections.map(section => (
+              <div key={section.id} className="kb-article-section">
+                <div className="kb-article-section-title">{section.title}</div>
+                {section.posts.map(post => (
+                  <button
+                    key={post.id}
+                    onClick={() => openPost(post, selectedPost.topicName, selectedPost.topicColor, section.title)}
+                    className={cls('kb-article-post-link', selectedPost.id === post.id && 'active')}
+                  >
+                    <FileText size={12} />
+                    <span>{post.title}</span>
+                  </button>
                 ))}
               </div>
-            </div>
-          );
-        })}
+            ))}
+          </nav>
+        </aside>
 
-        {filtered.length === 0 && (
-          <div className="kb-empty">
-            <BookOpen size={36} style={{ opacity: 0.2 }} />
-            <p>No articles match "{query}"</p>
+        {/* Article body */}
+        <div className="kb-article-body">
+          <div className="kb-article-inner">
+            <div className="kb-breadcrumb">
+              <button onClick={() => { setView('content-map'); setSelectedPost(null); }}>Content Map</button>
+              <ChevronRight size={10} />
+              <span style={{ color: selectedPost.topicColor }} className="kb-bc-topic">{selectedPost.topicName}</span>
+              <ChevronRight size={10} />
+              <span className="kb-bc-section">{selectedPost.sectionTitle}</span>
+            </div>
+
+            <h1 className="kb-article-title">{selectedPost.title}</h1>
+
+            <div className="kb-article-meta">
+              <span><Clock size={11} /> {selectedPost.updatedAt}</span>
+              <span>by {selectedPost.createdBy}</span>
+            </div>
+
+            <div className="kb-article-tags">
+              {selectedPost.tags.map(tag => (
+                <span key={tag} className="kb-tag-pill">
+                  <Hash size={8} />{tag}
+                </span>
+              ))}
+            </div>
+
+            <hr className="kb-article-divider" />
+
+            <div className="kb-content">
+              {renderMarkdown(selectedPost.content)}
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  // ===================== CONTENT MAP VIEW =====================
+  return (
+    <div className="kb-shell">
+      {/* Left sidebar — search + topic nav */}
+      <aside className="kb-content-sidebar">
+        <div className="kb-content-sidebar-inner">
+          <div className="kb-search-wrap">
+            <Search size={13} className="kb-search-icon" />
+            <input
+              type="text"
+              placeholder="Search or jump to…"
+              value={searchQuery}
+              onChange={e => setSearchQuery(e.target.value)}
+              onFocus={() => setSearchFocused(true)}
+              onBlur={() => setTimeout(() => setSearchFocused(false), 200)}
+              className="kb-search-input"
+            />
+            {searchQuery.length > 1 && searchFocused && (
+              <div className="kb-search-results">
+                {searchResults.length === 0 ? (
+                  <div className="kb-search-empty">No results</div>
+                ) : (
+                  <div className="kb-search-list">
+                    {searchResults.slice(0, 10).map(post => (
+                      <button
+                        key={post.id}
+                        onClick={() => openPost(post, post.topicName, post.topicColor, post.sectionTitle)}
+                        className="kb-search-row"
+                      >
+                        <FileText size={13} />
+                        <div>
+                          <p className="kb-search-title">{post.title}</p>
+                          <p className="kb-search-path">
+                            <span className="kb-topic-dot" style={{ background: post.topicColor }} />
+                            {post.topicName} › {post.sectionTitle}
+                          </p>
+                        </div>
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
+
+          <button
+            onClick={() => { setView('content-map'); setActiveTopicFilter(null); }}
+            className="kb-nav-link active"
+          >
+            <LayoutGrid size={13} />
+            Content Map
+          </button>
+
+          <div className="kb-nav-section">
+            <div className="kb-nav-section-title">All Topics</div>
+            {KB_TOPICS.map(topic => {
+              const isCollapsed = sidebarCollapsed.has(topic.id);
+              return (
+                <div key={topic.id}>
+                  <button
+                    onClick={() => toggleSidebarTopic(topic.id)}
+                    className={cls('kb-nav-topic', activeTopicFilter === topic.id && 'active')}
+                  >
+                    <span className="kb-topic-ring" style={{ borderColor: topic.color }} />
+                    <span className="kb-nav-topic-name">{topic.name}</span>
+                    {isCollapsed ? <ChevronRight size={12} /> : <ChevronDown size={12} />}
+                  </button>
+                  {!isCollapsed && (
+                    <div className="kb-nav-section-list">
+                      {topic.sections.map(section => (
+                        <button
+                          key={section.id}
+                          className="kb-nav-section-link"
+                          onClick={() => {
+                            setActiveTopicFilter(topic.id);
+                            document.getElementById(`section-${section.id}`)?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                          }}
+                        >
+                          {section.title}
+                        </button>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      </aside>
+
+      {/* Main content map */}
+      <div className="kb-content-main">
+        <div className="kb-content-header">
+          <h1 className="kb-page-title">Content Map</h1>
+          <div className="kb-header-controls">
+            {activeTopicFilter && (
+              <button onClick={() => setActiveTopicFilter(null)} className="kb-clear-chip">
+                <X size={10} /> Clear filter
+              </button>
+            )}
+            <button
+              onClick={() => setShowFilters(!showFilters)}
+              className={cls('kb-filter-btn', showFilters && 'active')}
+            >
+              <Filter size={12} /> Filter
+            </button>
+            <span className="kb-post-count">{allPosts.length} posts</span>
+          </div>
+        </div>
+
+        {showFilters && (
+          <div className="kb-tag-filters">
+            <div className="kb-tag-filters-label">Filter by tag</div>
+            <div className="kb-tag-filters-list">
+              {activeTagFilter && (
+                <button onClick={() => setActiveTagFilter(null)} className="kb-tag-clear">
+                  <X size={8} /> Clear
+                </button>
+              )}
+              {allTags.map(tag => (
+                <button
+                  key={tag}
+                  onClick={() => setActiveTagFilter(activeTagFilter === tag ? null : tag)}
+                  className={cls('kb-tag-chip', activeTagFilter === tag && 'active')}
+                >
+                  #{tag}
+                </button>
+              ))}
+            </div>
           </div>
         )}
+
+        <div className="kb-topics-grid">
+          {filteredTopics.map(topic => {
+            const isCollapsed = collapsedTopics.has(topic.id);
+            const filteredSections = topic.sections.map(section => ({
+              ...section,
+              posts: activeTagFilter
+                ? section.posts.filter(p => p.tags.includes(activeTagFilter))
+                : section.posts,
+            })).filter(s => s.posts.length > 0);
+
+            if (activeTagFilter && filteredSections.length === 0) return null;
+
+            return (
+              <div key={topic.id} className="kb-topic-card">
+                <div
+                  className="kb-topic-header"
+                  style={{ background: topic.color + '10', borderBottom: `2px solid ${topic.color}` }}
+                  onClick={() => {
+                    const next = new Set(collapsedTopics);
+                    isCollapsed ? next.delete(topic.id) : next.add(topic.id);
+                    setCollapsedTopics(next);
+                  }}
+                >
+                  <h2 style={{ color: topic.color }}>{topic.name}</h2>
+                  {isCollapsed
+                    ? <ChevronDown size={14} style={{ color: topic.color }} />
+                    : <ChevronUp size={14} style={{ color: topic.color }} />}
+                </div>
+
+                {!isCollapsed && (
+                  <div className="kb-topic-body">
+                    {filteredSections.map(section => {
+                      const isSectionCollapsed = collapsedSections.has(section.id);
+                      return (
+                        <div key={section.id} id={`section-${section.id}`} className="kb-section">
+                          <button onClick={() => toggleSection(section.id)} className="kb-section-header">
+                            <span className="kb-section-title">{section.title}</span>
+                            <div className="kb-section-meta">
+                              <span className="kb-section-count">{section.posts.length}</span>
+                              {isSectionCollapsed ? <ChevronRight size={12} /> : <ChevronDown size={12} />}
+                            </div>
+                          </button>
+                          {!isSectionCollapsed && (
+                            <div className="kb-section-posts">
+                              {section.posts.map(post => (
+                                <button
+                                  key={post.id}
+                                  onClick={() => openPost(post, topic.name, topic.color, section.title)}
+                                  className="kb-post-link"
+                                >
+                                  <FileText size={12} />
+                                  <span>{post.title}</span>
+                                </button>
+                              ))}
+                            </div>
+                          )}
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
+              </div>
+            );
+          })}
+        </div>
       </div>
     </div>
   );
 }
 
-// ─── Color swatch ────────────────────────────────────────────────────────────
+// ─── Color swatch (designer view) ────────────────────────────────────────────
 function ColorSwatch({ name, hex }) {
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', flex: '1 1 80px', minWidth: '80px' }}>
-      <div style={{
-        height: '56px',
-        backgroundColor: hex,
-        borderRadius: '10px',
-        border: '1px solid rgba(0,0,0,0.08)',
-        boxShadow: '0 1px 4px rgba(0,0,0,0.06)',
-      }} />
+    <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', flex: '1 1 80px', minWidth: '80px' }}>
+      <div style={{ height: '48px', backgroundColor: hex, borderRadius: '8px', border: '1px solid var(--mid-grey)' }} />
       <div>
-        <div style={{ fontSize: '12px', fontWeight: '700', color: 'var(--color-text)' }}>{name}</div>
-        <div style={{ fontSize: '11px', fontFamily: 'monospace', color: 'var(--color-text-muted)', marginTop: '1px' }}>{hex}</div>
+        <div style={{ fontSize: '12px', fontWeight: 700, color: 'var(--text-primary)' }}>{name}</div>
+        <div style={{ fontSize: '11px', fontFamily: 'var(--font-mono)', color: 'var(--text-tertiary)' }}>{hex}</div>
       </div>
     </div>
   );
 }
 
-// ─── Brand guideline card ────────────────────────────────────────────────────
+// ─── Brand guideline card (designer view) ────────────────────────────────────
 function BrandGuideCard({ guide }) {
   return (
-    <div style={{ backgroundColor: 'var(--color-surface)', border: '1px solid var(--color-border)', borderRadius: '16px', overflow: 'hidden' }}>
-
-      {/* Card header */}
-      <div style={{ padding: '20px 24px', borderBottom: '1px solid var(--color-border)', backgroundColor: 'var(--color-surface-2)', display: 'flex', alignItems: 'center', gap: '14px' }}>
-        <span style={{ fontSize: '30px' }}>{guide.icon}</span>
+    <div style={{ background: 'var(--white)', border: '1px solid var(--mid-grey)', borderRadius: '12px', overflow: 'hidden' }}>
+      <div style={{ padding: '16px 20px', borderBottom: '1px solid var(--mid-grey)', display: 'flex', alignItems: 'center', gap: '12px' }}>
+        <span style={{ fontSize: '24px' }}>{guide.icon}</span>
         <div>
-          <h3 style={{ fontSize: '18px', fontWeight: '800', letterSpacing: '-0.3px' }}>{guide.name}</h3>
-          <p style={{ fontSize: '12px', color: 'var(--color-text-muted)', marginTop: '2px' }}>Brand Style Guide</p>
+          <h3 style={{ fontSize: '16px', fontWeight: 900, letterSpacing: '-0.01em', color: 'var(--text-primary)' }}>{guide.name}</h3>
+          <p style={{ fontSize: '11px', color: 'var(--text-tertiary)', marginTop: '2px' }}>Brand Style Guide</p>
         </div>
       </div>
 
-      <div style={{ padding: '24px', display: 'flex', flexDirection: 'column', gap: '24px' }}>
-
-        {/* Colors */}
+      <div style={{ padding: '20px', display: 'flex', flexDirection: 'column', gap: '20px' }}>
         <div>
-          <div style={{ fontSize: '11px', fontWeight: '700', textTransform: 'uppercase', letterSpacing: '0.7px', color: 'var(--color-text-muted)', marginBottom: '14px' }}>Brand Colors</div>
-          <div style={{ display: 'flex', gap: '12px', flexWrap: 'wrap' }}>
+          <div style={{ fontSize: '10px', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.12em', color: 'var(--text-primary)', marginBottom: '12px' }}>Brand Colors</div>
+          <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap' }}>
             {guide.colors.map(c => <ColorSwatch key={c.hex} name={c.name} hex={c.hex} />)}
           </div>
         </div>
 
-        {/* Typography */}
         <div>
-          <div style={{ fontSize: '11px', fontWeight: '700', textTransform: 'uppercase', letterSpacing: '0.7px', color: 'var(--color-text-muted)', marginBottom: '14px', display: 'flex', alignItems: 'center', gap: '6px' }}>
-            <Type size={12} /> Typography
+          <div style={{ fontSize: '10px', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.12em', color: 'var(--text-primary)', marginBottom: '12px', display: 'flex', alignItems: 'center', gap: '6px' }}>
+            <Type size={11} /> Typography
           </div>
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
             {[{ label: 'Display', font: guide.fonts.display }, { label: 'Body', font: guide.fonts.body }].map(({ label, font }) => (
-              <div key={label} style={{ backgroundColor: 'var(--color-bg)', border: '1px solid var(--color-border)', borderRadius: '10px', padding: '14px' }}>
-                <div style={{ fontSize: '10px', fontWeight: '700', textTransform: 'uppercase', letterSpacing: '0.6px', color: 'var(--color-text-muted)', marginBottom: '6px' }}>{label}</div>
-                <div style={{ fontSize: '14px', fontWeight: '700', color: 'var(--color-text)', marginBottom: '2px' }}>{font.name}</div>
-                <div style={{ fontSize: '11px', color: 'var(--color-text-muted)' }}>{font.weight} · {font.note}</div>
+              <div key={label} style={{ background: 'var(--off-white)', border: '1px solid var(--mid-grey)', borderRadius: '8px', padding: '12px' }}>
+                <div style={{ fontSize: '10px', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.08em', color: 'var(--text-tertiary)', marginBottom: '4px' }}>{label}</div>
+                <div style={{ fontSize: '13px', fontWeight: 700, color: 'var(--text-primary)', marginBottom: '2px' }}>{font.name}</div>
+                <div style={{ fontSize: '11px', color: 'var(--text-tertiary)' }}>{font.weight} · {font.note}</div>
               </div>
             ))}
           </div>
         </div>
 
-        {/* Dos & Don'ts */}
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '14px' }}>
           <div>
-            <div style={{ fontSize: '11px', fontWeight: '700', textTransform: 'uppercase', letterSpacing: '0.7px', color: '#2e7d32', marginBottom: '12px' }}>✓ Do</div>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+            <div style={{ fontSize: '10px', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.12em', color: 'var(--status-done)', marginBottom: '10px' }}>Do</div>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
               {guide.dos.map((item, i) => (
                 <div key={i} style={{ display: 'flex', gap: '8px', alignItems: 'flex-start' }}>
-                  <div style={{ width: '18px', height: '18px', borderRadius: '50%', backgroundColor: 'rgba(46,125,50,0.12)', color: '#2e7d32', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, marginTop: '1px' }}>
-                    <Check size={11} strokeWidth={3} />
-                  </div>
-                  <span style={{ fontSize: '13px', lineHeight: '1.5', color: 'var(--color-text)' }}>{item}</span>
+                  <Check size={12} style={{ color: 'var(--status-done)', flexShrink: 0, marginTop: '3px' }} />
+                  <span style={{ fontSize: '13px', lineHeight: '1.5', color: 'var(--text-secondary)' }}>{item}</span>
                 </div>
               ))}
             </div>
           </div>
           <div>
-            <div style={{ fontSize: '11px', fontWeight: '700', textTransform: 'uppercase', letterSpacing: '0.7px', color: '#b20f00', marginBottom: '12px' }}>✗ Don't</div>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+            <div style={{ fontSize: '10px', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.12em', color: 'var(--accent)', marginBottom: '10px' }}>Don't</div>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
               {guide.donts.map((item, i) => (
                 <div key={i} style={{ display: 'flex', gap: '8px', alignItems: 'flex-start' }}>
-                  <div style={{ width: '18px', height: '18px', borderRadius: '50%', backgroundColor: 'rgba(178,15,0,0.10)', color: '#b20f00', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, marginTop: '1px' }}>
-                    <X size={11} strokeWidth={3} />
-                  </div>
-                  <span style={{ fontSize: '13px', lineHeight: '1.5', color: 'var(--color-text)' }}>{item}</span>
+                  <X size={12} style={{ color: 'var(--accent)', flexShrink: 0, marginTop: '3px' }} />
+                  <span style={{ fontSize: '13px', lineHeight: '1.5', color: 'var(--text-secondary)' }}>{item}</span>
                 </div>
               ))}
             </div>
           </div>
         </div>
-
       </div>
     </div>
   );
 }
 
-// ─── Designer knowledge base ─────────────────────────────────────────────────
+// ─── Designer KB ─────────────────────────────────────────────────────────────
 function DesignerKnowledgeBase({ currentUser, state }) {
   const myTasks = state.tasks.filter(t => t.assignees?.includes(currentUser.id));
-
-  // Find which brand spaceIds this designer has tasks in
   const mySpaceIds = new Set(
     myTasks.map(t => {
       const list = state.lists.find(l => l.id === t.listId);
       return list?.spaceId;
     }).filter(Boolean)
   );
-
-  // Show guidelines for brands this designer works on (all if none matched)
   const guideList = Object.values(BRAND_GUIDELINES).filter(g =>
     mySpaceIds.size === 0 || mySpaceIds.has(g.spaceId)
   );
 
   return (
-    <div className="kb-view">
-      <div className="kb-header">
-        <div className="kb-header-icon"><BookOpen size={28} /></div>
+    <div className="kb-designer">
+      <div className="kb-designer-header">
+        <div className="kb-designer-icon"><BookOpen size={22} /></div>
         <div>
-          <h2 className="kb-title">Brand Guidelines</h2>
-          <p className="kb-sub">Style guides for {guideList.length} brand{guideList.length !== 1 ? 's' : ''} you work on</p>
+          <h2 className="kb-designer-title">Brand Guidelines</h2>
+          <p className="kb-designer-sub">Style guides for {guideList.length} brand{guideList.length !== 1 ? 's' : ''} you work on</p>
         </div>
       </div>
 
-      <div style={{ display: 'flex', flexDirection: 'column', gap: '20px', paddingBottom: '40px' }}>
-        {guideList.map(guide => (
-          <BrandGuideCard key={guide.spaceId} guide={guide} />
-        ))}
+      <div style={{ display: 'flex', flexDirection: 'column', gap: '16px', paddingBottom: '40px' }}>
+        {guideList.map(guide => <BrandGuideCard key={guide.spaceId} guide={guide} />)}
       </div>
     </div>
   );
@@ -260,8 +547,9 @@ export default function KnowledgeBaseView() {
 
   if (!currentUser) return null;
 
-  const isManager = currentUser.role === 'Admin' || currentUser.role === 'Team Lead';
-  return isManager
-    ? <ManagerKnowledgeBase />
+  // Admin, Team Lead, Executive all see the full KB; Creative Associates see Brand Guidelines.
+  const canSeeFullKB = currentUser.role !== 'Creative Associate';
+  return canSeeFullKB
+    ? <FullKnowledgeBase />
     : <DesignerKnowledgeBase currentUser={currentUser} state={state} />;
 }

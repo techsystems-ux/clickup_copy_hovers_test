@@ -52,14 +52,12 @@ export default function LoginView() {
   return (
     <div style={{ height: '100vh', width: '100vw', backgroundColor: 'var(--color-bg)', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center' }}>
 
-      <div style={{ marginBottom: '40px', textAlign: 'center' }}>
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '12px', marginBottom: '16px' }}>
-          <div style={{ width: '40px', height: '40px', backgroundColor: '#111111', borderRadius: '10px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-            <Briefcase size={20} color="white" />
-          </div>
-          <h1 style={{ fontSize: '28px', fontWeight: '800', letterSpacing: '-0.5px' }}>Hovers Agency</h1>
+      <div style={{ marginBottom: '36px', textAlign: 'center' }}>
+        <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'center', marginBottom: '12px' }}>
+          <span style={{ fontSize: '36px', fontWeight: 900, letterSpacing: '-0.04em', color: 'var(--text-primary)' }}>Hovers</span>
+          <span style={{ fontSize: '36px', fontWeight: 900, letterSpacing: '-0.04em', color: 'var(--accent)' }}>.</span>
         </div>
-        <p style={{ color: 'var(--color-text-muted)', fontSize: '15px' }}>Sign in to your workspace</p>
+        <p style={{ color: 'var(--text-tertiary)', fontSize: '13px' }}>Sign in to your workspace</p>
       </div>
 
       <div style={{ width: '100%', maxWidth: '400px', backgroundColor: 'var(--color-surface)', border: '1px solid var(--color-border)', borderRadius: '16px', padding: '32px' }}>

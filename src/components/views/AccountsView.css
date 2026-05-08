@@ -1,10 +1,14 @@
 .accounts-view {
-  padding: 40px;
+  padding: 24px 32px;
   display: flex;
   flex-direction: column;
-  gap: 28px;
+  gap: 20px;
   height: 100%;
   overflow-y: auto;
+  max-width: 1280px;
+  margin: 0 auto;
+  width: 100%;
+  box-sizing: border-box;
 }
 
 .accounts-header {
@@ -12,138 +16,18 @@
   justify-content: space-between;
   align-items: flex-end;
   flex-wrap: wrap;
-  gap: 16px;
+  gap: 12px;
 }
 
 .accounts-title {
-  font-size: var(--text-xl);
-  font-family: var(--font-display);
-  letter-spacing: -0.5px;
+  font-size: var(--text-20);
+  font-weight: var(--w-black);
+  letter-spacing: -0.02em;
+  color: var(--text-primary);
 }
 
 .accounts-sub {
-  font-size: var(--text-sm);
-  color: var(--color-text-muted);
-  margin-top: 4px;
-}
-
-.accounts-search {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  background: var(--color-surface);
-  border: 1px solid var(--color-border);
-  border-radius: 8px;
-  padding: 8px 14px;
-  width: 240px;
-  color: var(--color-text-muted);
-}
-
-.accounts-search input {
-  background: none;
-  border: none;
-  outline: none;
-  font-size: var(--text-sm);
-  color: var(--color-text);
-  width: 100%;
-}
-
-.accounts-search input::placeholder {
-  color: var(--color-text-muted);
-}
-
-.accounts-table {
-  background: var(--color-surface);
-  border: 1px solid var(--color-border);
-  border-radius: 14px;
-  overflow: hidden;
-}
-
-.accounts-table-head {
-  display: grid;
-  grid-template-columns: 2fr 1fr 1.2fr 2fr;
-  padding: 12px 20px;
-  background: var(--color-surface-2);
-  border-bottom: 1px solid var(--color-border);
-  font-size: var(--text-xs);
-  font-weight: 700;
-  text-transform: uppercase;
-  letter-spacing: 0.6px;
-  color: var(--color-text-muted);
-}
-
-.accounts-row {
-  display: grid;
-  grid-template-columns: 2fr 1fr 1.2fr 2fr;
-  padding: 14px 20px;
-  border-bottom: 1px solid var(--color-border);
-  align-items: center;
-  transition: background 0.15s ease;
-}
-
-.accounts-row:last-child {
-  border-bottom: none;
-}
-
-.accounts-row:hover {
-  background: var(--color-surface-2);
-}
-
-.col-member {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-}
-
-.col-role,
-.col-status,
-.col-email {
-  display: flex;
-  align-items: center;
-  gap: 7px;
-  font-size: var(--text-sm);
-  color: var(--color-text-muted);
-}
-
-.acc-avatar {
-  width: 36px;
-  height: 36px;
-  border-radius: 50%;
-  object-fit: cover;
-  border: 1px solid var(--color-border);
-}
-
-.acc-name {
-  font-size: var(--text-sm);
-  font-weight: 600;
-  color: var(--color-text);
-}
-
-.acc-role-badge {
-  font-size: 11px;
-  font-weight: 700;
-  padding: 3px 10px;
-  border-radius: 99px;
-  letter-spacing: 0.3px;
-}
-
-.acc-status-dot {
-  width: 8px;
-  height: 8px;
-  border-radius: 50%;
-  flex-shrink: 0;
-}
-
-.acc-status-label {
-  font-size: var(--text-sm);
-}
-
-.accounts-empty {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 12px;
-  padding: 60px 20px;
-  color: var(--color-text-muted);
-  font-size: var(--text-sm);
+  font-size: var(--text-12);
+  color: var(--text-tertiary);
+  margin-top: 2px;
 }

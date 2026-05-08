@@ -1,4 +1,4 @@
-/* App specific styles, overriding globals if necessary */
+/* App layout */
 .app-container {
   display: flex;
   height: 100vh;
@@ -6,19 +6,10 @@
   overflow: hidden;
 }
 
-/* Sidebar and Main content areas */
+/* Sidebar shell — width owned here so layout doesn't depend on internal CSS */
 .sidebar {
-  width: 240px;
-  background-color: var(--color-surface);
-  border-right: 1px solid var(--color-border);
-  display: flex;
-  flex-direction: column;
-  transition: width 0.18s ease;
+  width: 220px;
   flex-shrink: 0;
-}
-
-.sidebar.collapsed {
-  width: 60px;
 }
 
 .main-content {
@@ -27,38 +18,44 @@
   flex-direction: column;
   min-width: 0;
   position: relative;
+  background: var(--off-white);
 }
 
 .topbar {
-  height: 60px;
-  background-color: var(--color-bg);
-  border-bottom: 1px solid var(--color-border);
+  height: 56px;
+  background: var(--white);
+  border-bottom: 1px solid var(--mid-grey);
   display: flex;
   align-items: center;
   padding: 0 24px;
   justify-content: space-between;
+  flex-shrink: 0;
+  position: sticky;
+  top: 0;
+  z-index: 30;
 }
 
 .view-content {
   flex: 1;
   overflow: auto;
   position: relative;
-  background-color: var(--color-bg);
+  background: var(--off-white);
 }
 
-/* Slide-over panel */
+/* Slide-over panel — task detail */
 .slide-over {
   position: absolute;
   top: 0;
   right: 0;
   bottom: 0;
-  width: 400px;
-  background-color: var(--color-surface);
-  border-left: 1px solid var(--color-border);
+  width: 520px;
+  max-width: 100%;
+  background: var(--white);
+  border-left: 1px solid var(--mid-grey);
   transform: translateX(100%);
   transition: transform 0.18s ease;
   z-index: 100;
-  box-shadow: -8px 0 32px rgba(0,0,0,0.12);
+  box-shadow: -8px 0 32px rgba(0,0,0,0.08);
   display: flex;
   flex-direction: column;
 }

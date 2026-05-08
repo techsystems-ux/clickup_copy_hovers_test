@@ -69,10 +69,10 @@ function StatusPicker({ currentStatus, taskId, onStatusChange }) {
 
 // ─── Priority config ────────────────────────────────
 const PRIORITY_MAP = {
-  Urgent: { label: 'P1', color: '#b20f00', bg: 'rgba(178,15,0,0.14)' },
-  High:   { label: 'P2', color: '#ff9800', bg: 'rgba(255,152,0,0.14)' },
-  Normal: { label: 'P3', color: '#2196f3', bg: 'rgba(33,150,243,0.14)' },
-  Low:    { label: 'P4', color: '#888',    bg: 'rgba(136,136,136,0.10)' },
+  Urgent: { label: 'P1', color: '#B20F00', bg: 'rgba(178,15,0,0.08)' },
+  High:   { label: 'P2', color: '#080808', bg: 'rgba(8,8,8,0.06)' },
+  Normal: { label: 'P3', color: '#888888', bg: 'rgba(136,136,136,0.10)' },
+  Low:    { label: 'P4', color: '#BBBBBB', bg: 'rgba(187,187,187,0.10)' },
 };
 
 const STATUS_COLORS = {
@@ -346,11 +346,11 @@ export default function ManagerTeamView() {
       {/* Page header */}
       <div className="mtv-dash-header">
         <div>
-          <h2 className="mtv-dash-title">Team Overview</h2>
-          <p className="mtv-dash-sub">Click a team member to view and manage their tasks.</p>
+          <h2 className="mtv-dash-title">Team</h2>
+          <p className="mtv-dash-sub">{executors.length} member{executors.length !== 1 ? 's' : ''} · {totalTasks} open task{totalTasks !== 1 ? 's' : ''}{p1Tasks > 0 ? ` · ${p1Tasks} urgent` : ''}</p>
         </div>
         <button className="mtv-assign-btn" onClick={() => setNewTaskModalOpen(true)}>
-          <Plus size={15} /> Assign Task
+          <Plus size={14} /> New Task
         </button>
       </div>
 

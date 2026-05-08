@@ -1,21 +1,13 @@
 import React from 'react';
 import { useStore } from '../../store/StoreContext';
 import { useUI } from '../../store/UIContext';
-import { Clock, AlertTriangle, Flag, CheckCircle2 } from 'lucide-react';
+import { AlertTriangle, ArrowUpRight, CheckSquare, Activity } from 'lucide-react';
 
-const PRIORITY_MAP = {
-  Urgent: { label: 'P1', color: '#b20f00', bg: 'rgba(178,15,0,0.12)' },
-  High:   { label: 'P2', color: '#ff9800', bg: 'rgba(255,152,0,0.12)' },
-  Normal: { label: 'P3', color: '#2196f3', bg: 'rgba(33,150,243,0.12)' },
-  Low:    { label: 'P4', color: '#888',    bg: 'rgba(136,136,136,0.10)' },
-};
-
-const STATUS_COLORS = {
-  'To Do':       '#888',
-  'In Progress': '#2196f3',
-  'Review':      '#ff9800',
-  'Blocked':     '#b20f00',
-  'Done':        '#4caf50',
+const PRIORITY_BAR = {
+  Urgent: 'var(--accent)',
+  High:   'var(--text-primary)',
+  Normal: 'var(--text-faint)',
+  Low:    'var(--mid-grey)',
 };
 
 function getGreeting() {
@@ -25,8 +17,93 @@ function getGreeting() {
   return 'Good evening';
 }
 
+function fmtDate(d) {
+  const dt = new Date(d);
+  const now = new Date();
+  const diff = Math.floor((dt - now) / 86400000);
+  if (diff === 0) return 'Today';
+  if (diff === 1) return 'Tomorrow';
+  if (diff === -1) return 'Yesterday';
+  return dt.toLocaleDateString([], { day: 'numeric', month: 'short' });
+}
+
+// ─── shared building blocks ────────────────────────────────────────────────
+const cardStyle = {
+  background: 'var(--white)',
+  border: '1px solid var(--mid-grey)',
+  borderRadius: '12px',
+  overflow: 'hidden',
+};
+
+function Panel({ title, badge, link, onLinkClick, children }) {
+  return (
+    <div style={cardStyle}>
+      <div style={{ padding: '10px 16px', borderBottom: '1px solid var(--mid-grey)', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+          <h3 style={{ fontSize: '11px', fontWeight: 700, color: 'var(--text-primary)', textTransform: 'uppercase', letterSpacing: '0.12em' }}>{title}</h3>
+          {badge != null && <span style={{ fontSize: '9px', fontWeight: 700, color: 'var(--text-tertiary)', background: 'var(--light-grey)', borderRadius: '4px', padding: '2px 6px' }}>{badge}</span>}
+        </div>
+        {link && (
+          <button onClick={onLinkClick} style={{ background: 'none', border: 'none', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '2px', fontSize: '10px', fontWeight: 600, color: 'var(--text-tertiary)' }}>
+            {link} <ArrowUpRight size={9} />
+          </button>
+        )}
+      </div>
+      <div>{children}</div>
+    </div>
+  );
+}
+
+function Stat({ label, value, highlight, onClick }) {
+  return (
+    <button onClick={onClick} style={{
+      ...cardStyle,
+      textAlign: 'left',
+      padding: '14px 16px',
+      cursor: onClick ? 'pointer' : 'default',
+      transition: 'border-color 0.15s ease',
+      borderColor: highlight && value > 0 ? 'rgba(178,15,0,0.2)' : 'var(--mid-grey)',
+    }}>
+      <div style={{ fontSize: '20px', fontWeight: 900, lineHeight: 1, letterSpacing: '-0.01em', color: highlight && value > 0 ? 'var(--accent)' : 'var(--text-primary)' }}>{value}</div>
+      <div style={{ fontSize: '10px', fontWeight: 600, color: 'var(--text-tertiary)', textTransform: 'uppercase', letterSpacing: '0.08em', marginTop: '4px' }}>{label}</div>
+    </button>
+  );
+}
+
+function TaskRow({ task, brand, onClick }) {
+  const isOverdue = task.dueDate && new Date(task.dueDate) < new Date() && task.status !== 'Done';
+  return (
+    <div onClick={onClick} style={{ padding: '10px 16px', display: 'flex', alignItems: 'center', gap: '10px', cursor: onClick ? 'pointer' : 'default', borderBottom: '1px solid var(--light-grey)' }}>
+      <div style={{ width: '3px', height: '20px', borderRadius: '99px', background: PRIORITY_BAR[task.priority] || PRIORITY_BAR.Normal, flexShrink: 0 }} />
+      <div style={{ flex: 1, minWidth: 0 }}>
+        <p style={{ fontSize: '12px', fontWeight: 600, color: 'var(--text-primary)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{task.title}</p>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginTop: '2px' }}>
+          {brand && <span style={{ fontSize: '10px', color: 'var(--text-muted)' }}>{brand.name}</span>}
+          {task.dueDate && (
+            <>
+              <span style={{ fontSize: '10px', color: 'var(--border)' }}>·</span>
+              <span style={{ fontSize: '10px', color: isOverdue ? 'var(--accent)' : 'var(--text-faint)', fontWeight: isOverdue ? 600 : 400 }}>
+                {fmtDate(task.dueDate)}
+              </span>
+            </>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function EmptyRow({ icon, text }) {
+  return (
+    <div style={{ padding: '32px 16px', textAlign: 'center', color: 'var(--text-faint)', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '6px' }}>
+      <span style={{ opacity: 0.4 }}>{icon}</span>
+      <span style={{ fontSize: '12px' }}>{text}</span>
+    </div>
+  );
+}
+
 // ─── Designer / Executor Home ───────────────────────────────────────────────
-function DesignerHome({ currentUser, state }) {
+function DesignerHome({ currentUser, state, setSelectedTaskId, setActivePage }) {
   const myTasks = state.tasks.filter(t => t.assignees?.includes(currentUser.id));
 
   const tasksWithBrand = myTasks.map(t => {
@@ -43,145 +120,118 @@ function DesignerHome({ currentUser, state }) {
     return 0;
   });
 
-  const assignerIds = [...new Set(myTasks.map(t => t.assignedBy).filter(Boolean))];
-  const assigners = assignerIds.map(id => state.members.find(m => m.id === id)).filter(Boolean);
-
   const total   = myTasks.length;
   const done    = myTasks.filter(t => t.status === 'Done').length;
   const overdue = myTasks.filter(t => t.dueDate && new Date(t.dueDate) < new Date() && t.status !== 'Done').length;
   const urgent  = myTasks.filter(t => t.priority === 'Urgent' && t.status !== 'Done').length;
+  const inProgress = myTasks.filter(t => t.status === 'In Progress').length;
+
+  const todayStr = new Date().toISOString().split('T')[0];
+  const dueToday = myTasks.filter(t => t.dueDate && t.dueDate.startsWith(todayStr));
+
+  const open = sorted.filter(t => t.status !== 'Done');
+
+  const greeting = getGreeting();
+  const dateLine = new Date().toLocaleDateString([], { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' });
+
+  const assignerIds = [...new Set(myTasks.map(t => t.assignedBy).filter(Boolean))];
+  const assigners = assignerIds.map(id => state.members.find(m => m.id === id)).filter(Boolean);
 
   return (
-    <div style={{ padding: '32px', maxWidth: '1100px', margin: '0 auto', width: '100%' }}>
-      <div style={{ marginBottom: '32px' }}>
-        <h1 style={{ fontSize: '28px', fontWeight: '800', marginBottom: '4px', letterSpacing: '-0.5px' }}>
-          {getGreeting()}, {currentUser.name.split(' ')[0]}
-        </h1>
-        <p style={{ color: 'var(--color-text-muted)', fontSize: '14px' }}>
-          {new Date().toLocaleDateString([], { weekday: 'long', month: 'long', day: 'numeric' })} · {total - done} task{total - done !== 1 ? 's' : ''} remaining
-        </p>
+    <div style={{ padding: '24px 32px', display: 'flex', flexDirection: 'column', gap: '20px', maxWidth: '1280px', margin: '0 auto' }}>
+      {/* Greeting header */}
+      <div>
+        <h2 style={{ fontSize: '20px', fontWeight: 900, letterSpacing: '-0.02em', color: 'var(--text-primary)' }}>
+          {greeting}, {currentUser.name?.split(' ')[0]}<span style={{ color: 'var(--accent)' }}>.</span>
+        </h2>
+        <p style={{ fontSize: '12px', color: 'var(--text-tertiary)', marginTop: '2px' }}>{dateLine}</p>
       </div>
 
-      <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr', gap: '24px', alignItems: 'start' }}>
-
-        {/* LEFT — Task list */}
-        <div>
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '14px' }}>
-            <h2 style={{ fontSize: '13px', fontWeight: '700', textTransform: 'uppercase', letterSpacing: '0.6px', color: 'var(--color-text-muted)' }}>My Tasks</h2>
-            <span style={{ fontSize: '12px', color: 'var(--color-text-muted)' }}>{total} total · {done} done</span>
-          </div>
-
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
-            {sorted.length === 0 ? (
-              <div style={{ textAlign: 'center', padding: '60px 20px', color: 'var(--color-text-muted)', fontSize: '14px', backgroundColor: 'var(--color-surface)', borderRadius: '12px', border: '1px solid var(--color-border)' }}>
-                No tasks assigned yet. Enjoy the quiet! 🎉
-              </div>
-            ) : sorted.map(task => {
-              const p = PRIORITY_MAP[task.priority] || PRIORITY_MAP.Normal;
-              const due = task.dueDate ? new Date(task.dueDate) : null;
-              const isOverdue = due && due < new Date() && task.status !== 'Done';
-              const isDone = task.status === 'Done';
-              const progress = task.timeEstimate > 0 ? Math.min(100, (task.timeTracked / task.timeEstimate) * 100) : null;
-
-              return (
-                <div key={task.id} style={{
-                  backgroundColor: 'var(--color-surface)',
-                  border: '1px solid var(--color-border)',
-                  borderLeft: `3px solid ${p.color}`,
-                  borderRadius: '10px',
-                  padding: '16px',
-                  opacity: isDone ? 0.55 : 1,
-                  transition: 'opacity 0.2s',
-                }}>
-                  <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: '12px', marginBottom: '10px' }}>
-                    <div style={{ minWidth: 0 }}>
-                      {task.brand && (
-                        <span style={{ fontSize: '10px', fontWeight: '700', textTransform: 'uppercase', letterSpacing: '0.8px', color: 'var(--color-text-muted)', display: 'block', marginBottom: '3px' }}>
-                          {task.brand.icon} {task.brand.name}
-                        </span>
-                      )}
-                      <span style={{ fontSize: '14px', fontWeight: '600', textDecoration: isDone ? 'line-through' : 'none', color: isDone ? 'var(--color-text-muted)' : 'var(--color-text)', display: 'block' }}>
-                        {task.title}
-                      </span>
-                    </div>
-                    <span style={{ flexShrink: 0, fontSize: '11px', fontWeight: '700', padding: '3px 8px', borderRadius: '99px', color: p.color, backgroundColor: p.bg, border: `1px solid ${p.color}33` }}>
-                      {p.label} · {task.priority}
-                    </span>
-                  </div>
-
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap', marginBottom: progress !== null ? '12px' : '0' }}>
-                    <span style={{ fontSize: '11px', padding: '2px 8px', borderRadius: '99px', backgroundColor: `${STATUS_COLORS[task.status]}18`, color: STATUS_COLORS[task.status], border: `1px solid ${STATUS_COLORS[task.status]}33`, fontWeight: '700' }}>
-                      {task.status}
-                    </span>
-                    {due && (
-                      <span style={{ display: 'flex', alignItems: 'center', gap: '4px', fontSize: '12px', color: isOverdue ? '#b20f00' : 'var(--color-text-muted)' }}>
-                        {isOverdue ? <AlertTriangle size={11} /> : <Clock size={11} />}
-                        {due.toLocaleDateString([], { month: 'short', day: 'numeric' })}
-                        {isOverdue && <strong style={{ fontSize: '10px', letterSpacing: '0.4px' }}> OVERDUE</strong>}
-                      </span>
-                    )}
-                  </div>
-
-                  {progress !== null && (
-                    <div>
-                      <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '11px', color: 'var(--color-text-muted)', marginBottom: '5px' }}>
-                        <span>Time tracked</span>
-                        <span>{Math.round(task.timeTracked / 60)}h / {Math.round(task.timeEstimate / 60)}h</span>
-                      </div>
-                      <div style={{ height: '4px', borderRadius: '99px', backgroundColor: 'var(--color-surface-2)', overflow: 'hidden' }}>
-                        <div style={{ height: '100%', width: `${progress}%`, backgroundColor: progress >= 100 ? '#4caf50' : '#2196f3', borderRadius: '99px', transition: 'width 0.4s' }} />
-                      </div>
-                    </div>
-                  )}
-                </div>
-              );
-            })}
-          </div>
+      {/* Attention strip */}
+      {overdue > 0 && (
+        <div style={{ padding: '12px 16px', borderRadius: '12px', display: 'flex', alignItems: 'center', gap: '10px', background: 'var(--accent-5)', border: '1px solid var(--accent-15)' }}>
+          <AlertTriangle size={14} color="var(--accent)" />
+          <p style={{ fontSize: '12px', fontWeight: 600, color: 'var(--text-primary)' }}>
+            <span style={{ color: 'var(--accent)' }}>{overdue} overdue task{overdue > 1 ? 's' : ''}</span>
+          </p>
         </div>
+      )}
 
-        {/* RIGHT — Stats + Assigners */}
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '16px', position: 'sticky', top: '24px' }}>
+      {/* Stats */}
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '12px' }}>
+        <Stat label="My Tasks"    value={total}      onClick={() => setActivePage('Tasks')} />
+        <Stat label="Due Today"   value={dueToday.length} highlight onClick={() => setActivePage('Tasks')} />
+        <Stat label="In Progress" value={inProgress} onClick={() => setActivePage('Tasks')} />
+        <Stat label="Completed"   value={done}       onClick={() => setActivePage('Tasks')} />
+      </div>
 
-          {/* Quick Stats */}
-          <div style={{ backgroundColor: 'var(--color-surface)', border: '1px solid var(--color-border)', borderRadius: '12px', padding: '20px' }}>
-            <h3 style={{ fontSize: '11px', fontWeight: '700', textTransform: 'uppercase', letterSpacing: '0.7px', color: 'var(--color-text-muted)', marginBottom: '16px' }}>Quick Stats</h3>
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
+      {/* Main grid */}
+      <div style={{ display: 'grid', gridTemplateColumns: '5fr 4fr', gap: '16px', alignItems: 'start' }}>
+        {/* My focus */}
+        <Panel title="My Focus" badge={open.length || undefined} link="All" onLinkClick={() => setActivePage('Tasks')}>
+          {open.length === 0 ? (
+            <EmptyRow icon={<CheckSquare size={16} />} text="All caught up" />
+          ) : (
+            <>
+              {open.filter(t => t.dueDate && new Date(t.dueDate) < new Date()).length > 0 && (
+                <div style={{ padding: '6px 16px', background: 'var(--accent-5)' }}>
+                  <p style={{ fontSize: '9px', fontWeight: 700, color: 'var(--accent)', textTransform: 'uppercase', letterSpacing: '0.16em' }}>Overdue</p>
+                </div>
+              )}
+              {open
+                .filter(t => t.dueDate && new Date(t.dueDate) < new Date())
+                .map(task => <TaskRow key={task.id} task={task} brand={task.brand} onClick={() => setSelectedTaskId(task.id)} />)}
+
+              {dueToday.length > 0 && (
+                <div style={{ padding: '6px 16px', background: 'var(--off-white)' }}>
+                  <p style={{ fontSize: '9px', fontWeight: 700, color: 'var(--text-primary)', textTransform: 'uppercase', letterSpacing: '0.16em' }}>Today</p>
+                </div>
+              )}
+
+              {open
+                .filter(t => !(t.dueDate && new Date(t.dueDate) < new Date()))
+                .slice(0, 8)
+                .map(task => <TaskRow key={task.id} task={task} brand={task.brand} onClick={() => setSelectedTaskId(task.id)} />)}
+            </>
+          )}
+        </Panel>
+
+        {/* Side: Stats + Assigners */}
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+          <Panel title="Snapshot" link={undefined}>
+            <div style={{ padding: '14px 16px', display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
               {[
-                { label: 'Total',   value: total,   color: '#111111' },
-                { label: 'Done',    value: done,    color: '#4caf50' },
-                { label: 'Overdue', value: overdue, color: '#b20f00' },
-                { label: 'Urgent',  value: urgent,  color: '#ff9800' },
-              ].map(stat => (
-                <div key={stat.label} style={{ textAlign: 'center', padding: '14px 10px', backgroundColor: 'var(--color-bg)', borderRadius: '8px', border: '1px solid var(--color-border)' }}>
-                  <div style={{ fontSize: '26px', fontWeight: '800', color: stat.color, lineHeight: '1', marginBottom: '4px' }}>{stat.value}</div>
-                  <div style={{ fontSize: '11px', color: 'var(--color-text-muted)', fontWeight: '600' }}>{stat.label}</div>
+                { label: 'Urgent',    value: urgent,    color: 'var(--accent)' },
+                { label: 'Overdue',   value: overdue,   color: 'var(--accent)' },
+                { label: 'In Progress', value: inProgress, color: 'var(--text-primary)' },
+                { label: 'Completed', value: done,      color: 'var(--status-done)' },
+              ].map(s => (
+                <div key={s.label} style={{ background: 'var(--off-white)', borderRadius: '8px', padding: '12px' }}>
+                  <div style={{ fontSize: '20px', fontWeight: 900, lineHeight: 1, color: s.color }}>{s.value}</div>
+                  <div style={{ fontSize: '10px', color: 'var(--text-tertiary)', textTransform: 'uppercase', letterSpacing: '0.08em', fontWeight: 600, marginTop: '4px' }}>{s.label}</div>
                 </div>
               ))}
             </div>
-          </div>
+          </Panel>
 
-          {/* Task Assigners */}
           {assigners.length > 0 && (
-            <div style={{ backgroundColor: 'var(--color-surface)', border: '1px solid var(--color-border)', borderRadius: '12px', padding: '20px' }}>
-              <h3 style={{ fontSize: '11px', fontWeight: '700', textTransform: 'uppercase', letterSpacing: '0.7px', color: 'var(--color-text-muted)', marginBottom: '16px' }}>Task Assigners</h3>
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
-                {assigners.map(assigner => {
-                  const count = myTasks.filter(t => t.assignedBy === assigner.id).length;
-                  return (
-                    <div key={assigner.id} style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                      <img src={assigner.avatar} alt={assigner.name} style={{ width: '36px', height: '36px', borderRadius: '50%', objectFit: 'cover', flexShrink: 0, border: '1px solid var(--color-border)' }} />
-                      <div style={{ flex: 1, minWidth: 0 }}>
-                        <div style={{ fontSize: '13px', fontWeight: '600', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{assigner.name}</div>
-                        <div style={{ fontSize: '11px', color: 'var(--color-text-muted)' }}>{assigner.role}</div>
-                      </div>
-                      <span style={{ flexShrink: 0, fontSize: '11px', fontWeight: '700', color: 'var(--color-text-muted)', backgroundColor: 'var(--color-surface-2)', padding: '2px 8px', borderRadius: '99px', border: '1px solid var(--color-border)' }}>
-                        {count} task{count !== 1 ? 's' : ''}
-                      </span>
+            <Panel title="Assigners" badge={assigners.length}>
+              {assigners.map(a => {
+                const count = myTasks.filter(t => t.assignedBy === a.id).length;
+                return (
+                  <div key={a.id} style={{ padding: '10px 16px', display: 'flex', alignItems: 'center', gap: '10px', borderBottom: '1px solid var(--light-grey)' }}>
+                    <img src={a.avatar} alt={a.name} style={{ width: '28px', height: '28px', borderRadius: '50%', objectFit: 'cover', flexShrink: 0 }} />
+                    <div style={{ flex: 1, minWidth: 0 }}>
+                      <p style={{ fontSize: '12px', fontWeight: 600, color: 'var(--text-primary)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{a.name}</p>
+                      <p style={{ fontSize: '10px', color: 'var(--text-faint)', marginTop: '1px' }}>{a.role}</p>
                     </div>
-                  );
-                })}
-              </div>
-            </div>
+                    <span style={{ fontSize: '10px', fontWeight: 600, color: 'var(--text-tertiary)', background: 'var(--light-grey)', borderRadius: '4px', padding: '2px 6px' }}>
+                      {count} task{count !== 1 ? 's' : ''}
+                    </span>
+                  </div>
+                );
+              })}
+            </Panel>
           )}
         </div>
       </div>
@@ -190,93 +240,107 @@ function DesignerHome({ currentUser, state }) {
 }
 
 // ─── Manager / Admin Home ────────────────────────────────────────────────────
-function ManagerHome({ currentUser, state }) {
+function ManagerHome({ currentUser, state, setSelectedTaskId, setActivePage }) {
   const allTasks = state.tasks;
   const total   = allTasks.length;
   const done    = allTasks.filter(t => t.status === 'Done').length;
   const overdue = allTasks.filter(t => t.dueDate && new Date(t.dueDate) < new Date() && t.status !== 'Done').length;
   const urgent  = allTasks.filter(t => t.priority === 'Urgent' && t.status !== 'Done').length;
-
-  const byStatus = ['To Do', 'In Progress', 'Review', 'Blocked', 'Done'].map(s => ({
-    status: s,
-    count: allTasks.filter(t => t.status === s).length,
-  }));
+  const inProgress = allTasks.filter(t => t.status === 'In Progress').length;
 
   const executors = state.members.filter(m => m.role === 'Executive' || m.role === 'Creative Associate');
 
+  const greeting = getGreeting();
+  const dateLine = new Date().toLocaleDateString([], { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' });
+
+  // Brands at risk
+  const brandsAtRisk = state.spaces.map(sp => {
+    const listIds = state.lists.filter(l => l.spaceId === sp.id).map(l => l.id);
+    const tasksInBrand = allTasks.filter(t => listIds.includes(t.listId));
+    const ovd = tasksInBrand.filter(t => t.dueDate && new Date(t.dueDate) < new Date() && t.status !== 'Done').length;
+    return { sp, ovd };
+  }).filter(b => b.ovd > 0).sort((a, b) => b.ovd - a.ovd);
+
   return (
-    <div style={{ padding: '32px', maxWidth: '1100px', margin: '0 auto', width: '100%' }}>
-      <div style={{ marginBottom: '32px' }}>
-        <h1 style={{ fontSize: '28px', fontWeight: '800', marginBottom: '4px', letterSpacing: '-0.5px' }}>
-          {getGreeting()}, {currentUser.name.split(' ')[0]}
-        </h1>
-        <p style={{ color: 'var(--color-text-muted)', fontSize: '14px' }}>
-          {new Date().toLocaleDateString([], { weekday: 'long', month: 'long', day: 'numeric' })} · {overdue > 0 ? `${overdue} task${overdue > 1 ? 's' : ''} overdue` : 'All tasks on track'}
-        </p>
+    <div style={{ padding: '24px 32px', display: 'flex', flexDirection: 'column', gap: '20px', maxWidth: '1280px', margin: '0 auto' }}>
+      {/* Greeting */}
+      <div>
+        <h2 style={{ fontSize: '20px', fontWeight: 900, letterSpacing: '-0.02em', color: 'var(--text-primary)' }}>
+          {greeting}, {currentUser.name?.split(' ')[0]}<span style={{ color: 'var(--accent)' }}>.</span>
+        </h2>
+        <p style={{ fontSize: '12px', color: 'var(--text-tertiary)', marginTop: '2px' }}>{dateLine}</p>
       </div>
 
-      {/* KPI row */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '12px', marginBottom: '28px' }}>
-        {[
-          { label: 'Total Tasks', value: total,   color: '#111111' },
-          { label: 'Completed',   value: done,    color: '#4caf50' },
-          { label: 'Overdue',     value: overdue, color: '#b20f00' },
-          { label: 'P1 Urgent',   value: urgent,  color: '#ff9800' },
-        ].map(stat => (
-          <div key={stat.label} style={{ backgroundColor: 'var(--color-surface)', border: '1px solid var(--color-border)', borderRadius: '12px', padding: '20px', textAlign: 'center' }}>
-            <div style={{ fontSize: '32px', fontWeight: '800', color: stat.color, lineHeight: '1', marginBottom: '6px' }}>{stat.value}</div>
-            <div style={{ fontSize: '12px', color: 'var(--color-text-muted)', fontWeight: '600' }}>{stat.label}</div>
-          </div>
-        ))}
+      {/* Attention strip */}
+      {(overdue > 0 || brandsAtRisk.length > 0) && (
+        <div style={{ padding: '12px 16px', borderRadius: '12px', display: 'flex', alignItems: 'center', gap: '10px', background: overdue > 0 ? 'var(--accent-5)' : 'var(--light-grey)', border: overdue > 0 ? '1px solid var(--accent-15)' : '1px solid var(--mid-grey)' }}>
+          <AlertTriangle size={14} color={overdue > 0 ? 'var(--accent)' : 'var(--text-tertiary)'} />
+          <p style={{ fontSize: '12px', fontWeight: 600, color: 'var(--text-primary)' }}>
+            {overdue > 0 && <span style={{ color: 'var(--accent)' }}>{overdue} overdue task{overdue > 1 ? 's' : ''}</span>}
+            {overdue > 0 && brandsAtRisk.length > 0 && <span style={{ color: 'var(--text-faint)' }}> · </span>}
+            {brandsAtRisk.length > 0 && <span>{brandsAtRisk.length} brand{brandsAtRisk.length > 1 ? 's' : ''} at risk</span>}
+          </p>
+        </div>
+      )}
+
+      {/* Stats */}
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '12px' }}>
+        <Stat label="Total Tasks"  value={total}      onClick={() => setActivePage('Tasks')} />
+        <Stat label="In Progress"  value={inProgress} onClick={() => setActivePage('Tasks')} />
+        <Stat label="Urgent"       value={urgent}     highlight onClick={() => setActivePage('Tasks')} />
+        <Stat label="Overdue"      value={overdue}    highlight onClick={() => setActivePage('Tasks')} />
       </div>
 
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '20px' }}>
-
+      <div style={{ display: 'grid', gridTemplateColumns: '5fr 4fr', gap: '16px', alignItems: 'start' }}>
         {/* Team workload */}
-        <div style={{ backgroundColor: 'var(--color-surface)', border: '1px solid var(--color-border)', borderRadius: '12px', padding: '20px' }}>
-          <h3 style={{ fontSize: '11px', fontWeight: '700', textTransform: 'uppercase', letterSpacing: '0.7px', color: 'var(--color-text-muted)', marginBottom: '18px' }}>Team Workload</h3>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
-            {executors.map(member => {
-              const mt = allTasks.filter(t => t.assignees?.includes(member.id));
-              const md = mt.filter(t => t.status === 'Done').length;
-              const pct = mt.length > 0 ? Math.round((md / mt.length) * 100) : 100;
-              return (
-                <div key={member.id}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '7px' }}>
-                    <img src={member.avatar} alt={member.name} style={{ width: '28px', height: '28px', borderRadius: '50%', objectFit: 'cover', border: '1px solid var(--color-border)' }} />
-                    <span style={{ fontSize: '13px', fontWeight: '600', flex: 1, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{member.name}</span>
-                    <span style={{ flexShrink: 0, fontSize: '11px', color: 'var(--color-text-muted)', fontWeight: '600' }}>{mt.length} tasks · {pct}%</span>
+        <Panel title="Team Bandwidth" badge={executors.length}>
+          {executors.length === 0 ? (
+            <EmptyRow icon={<Activity size={16} />} text="No team members yet" />
+          ) : executors.map(member => {
+            const mt = allTasks.filter(t => t.assignees?.includes(member.id));
+            const md = mt.filter(t => t.status === 'Done').length;
+            const ovd = mt.filter(t => t.dueDate && new Date(t.dueDate) < new Date() && t.status !== 'Done').length;
+            const open = mt.length - md;
+            const pct = mt.length > 0 ? Math.min((open * 15), 100) : 0;
+            return (
+              <div key={member.id} style={{ padding: '10px 16px', display: 'flex', alignItems: 'center', gap: '10px', borderBottom: '1px solid var(--light-grey)' }}>
+                <img src={member.avatar} alt={member.name} style={{ width: '28px', height: '28px', borderRadius: '50%', objectFit: 'cover', flexShrink: 0 }} />
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '8px' }}>
+                    <p style={{ fontSize: '12px', fontWeight: 600, color: 'var(--text-primary)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{member.name}</p>
+                    <span style={{ fontSize: '10px', color: 'var(--text-faint)', flexShrink: 0 }}>{md}/{mt.length}</span>
                   </div>
-                  <div style={{ height: '4px', borderRadius: '99px', backgroundColor: 'var(--color-surface-2)', overflow: 'hidden' }}>
-                    <div style={{ height: '100%', width: `${pct}%`, backgroundColor: '#4caf50', borderRadius: '99px', transition: 'width 0.4s' }} />
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginTop: '6px' }}>
+                    <div style={{ flex: 1, height: '4px', background: 'var(--light-grey)', borderRadius: '99px', overflow: 'hidden' }}>
+                      <div style={{ height: '100%', width: `${pct}%`, background: open > 5 ? 'var(--accent)' : 'var(--text-primary)', borderRadius: '99px' }} />
+                    </div>
+                    <span style={{ fontSize: '10px', color: 'var(--text-dim)', fontWeight: 600, width: '24px', textAlign: 'right' }}>{open}</span>
                   </div>
                 </div>
-              );
-            })}
-          </div>
-        </div>
+                {ovd > 0 && <span style={{ fontSize: '9px', fontWeight: 700, color: 'var(--accent)', background: 'var(--accent-5)', padding: '2px 6px', borderRadius: '4px' }}>{ovd} late</span>}
+              </div>
+            );
+          })}
+        </Panel>
 
-        {/* Status breakdown */}
-        <div style={{ backgroundColor: 'var(--color-surface)', border: '1px solid var(--color-border)', borderRadius: '12px', padding: '20px' }}>
-          <h3 style={{ fontSize: '11px', fontWeight: '700', textTransform: 'uppercase', letterSpacing: '0.7px', color: 'var(--color-text-muted)', marginBottom: '18px' }}>Status Breakdown</h3>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
-            {byStatus.map(({ status, count }) => {
-              const color = STATUS_COLORS[status] || '#888';
-              const pct = total > 0 ? (count / total) * 100 : 0;
-              return (
-                <div key={status}>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '13px', marginBottom: '5px' }}>
-                    <span style={{ color, fontWeight: '700' }}>{status}</span>
-                    <span style={{ color: 'var(--color-text-muted)', fontWeight: '600' }}>{count}</span>
-                  </div>
-                  <div style={{ height: '4px', borderRadius: '99px', backgroundColor: 'var(--color-surface-2)', overflow: 'hidden' }}>
-                    <div style={{ height: '100%', width: `${pct}%`, backgroundColor: color, borderRadius: '99px', transition: 'width 0.4s' }} />
-                  </div>
+        {/* Brands at risk */}
+        <Panel title={brandsAtRisk.length > 0 ? 'At Risk' : 'Brands'} badge={brandsAtRisk.length > 0 ? brandsAtRisk.length : state.spaces.length}>
+          {(brandsAtRisk.length > 0 ? brandsAtRisk : state.spaces.map(sp => ({ sp, ovd: 0 }))).slice(0, 8).map(({ sp, ovd }) => {
+            const listIds = state.lists.filter(l => l.spaceId === sp.id).map(l => l.id);
+            const taskCount = allTasks.filter(t => listIds.includes(t.listId)).length;
+            return (
+              <button key={sp.id} onClick={() => setActivePage('Accounts')} style={{ width: '100%', padding: '10px 16px', display: 'flex', alignItems: 'center', gap: '10px', background: 'transparent', border: 'none', borderBottom: '1px solid var(--light-grey)', cursor: 'pointer', textAlign: 'left' }}>
+                <div style={{ width: '24px', height: '24px', borderRadius: '6px', background: ovd > 0 ? 'var(--accent-10)' : 'var(--light-grey)', color: ovd > 0 ? 'var(--accent)' : 'var(--text-tertiary)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '8px', fontWeight: 700, flexShrink: 0 }}>
+                  {sp.name.slice(0, 2).toUpperCase()}
                 </div>
-              );
-            })}
-          </div>
-        </div>
+                <p style={{ flex: 1, fontSize: '12px', fontWeight: 600, color: 'var(--text-primary)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{sp.name}</p>
+                {ovd > 0
+                  ? <span style={{ fontSize: '9px', fontWeight: 700, color: 'var(--accent)' }}>{ovd} overdue</span>
+                  : <span style={{ fontSize: '10px', color: 'var(--text-faint)', fontWeight: 600 }}>{taskCount}t</span>}
+              </button>
+            );
+          })}
+        </Panel>
       </div>
     </div>
   );
@@ -285,12 +349,12 @@ function ManagerHome({ currentUser, state }) {
 // ─── Root export ─────────────────────────────────────────────────────────────
 export default function HomeView() {
   const { state } = useStore();
-  const { currentUser } = useUI();
+  const { currentUser, setSelectedTaskId, setActivePage } = useUI();
 
   if (!currentUser) return null;
 
   const isManager = currentUser.role === 'Admin' || currentUser.role === 'Team Lead';
   return isManager
-    ? <ManagerHome currentUser={currentUser} state={state} />
-    : <DesignerHome currentUser={currentUser} state={state} />;
+    ? <ManagerHome currentUser={currentUser} state={state} setSelectedTaskId={setSelectedTaskId} setActivePage={setActivePage} />
+    : <DesignerHome currentUser={currentUser} state={state} setSelectedTaskId={setSelectedTaskId} setActivePage={setActivePage} />;
 }

@@ -142,11 +142,9 @@ export default function SettingsView() {
   return (
     <div style={{ padding: '32px 40px', maxWidth: '760px', margin: '0 auto', width: '100%', boxSizing: 'border-box' }}>
 
-      <div style={{ marginBottom: '24px' }}>
-        <h1 style={{ fontSize: '26px', fontFamily: 'var(--font-display)', fontWeight: 700, display: 'flex', alignItems: 'center', gap: '10px' }}>
-          <SettingsIcon size={22} /> Settings
-        </h1>
-        <p style={{ color: 'var(--color-text-muted)', fontSize: '13px', marginTop: '4px' }}>
+      <div style={{ marginBottom: '20px' }}>
+        <h1 style={{ fontSize: '20px', fontWeight: 900, letterSpacing: '-0.02em', color: 'var(--text-primary)' }}>Settings</h1>
+        <p style={{ color: 'var(--text-tertiary)', fontSize: '12px', marginTop: '2px' }}>
           Personalise your profile and notification preferences.
         </p>
       </div>

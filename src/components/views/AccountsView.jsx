@@ -150,51 +150,50 @@ function BrandCard({ space, state, currentUser, canSubAssign }) {
     .filter(x => x.member);
 
   return (
-    <div style={{ backgroundColor: 'var(--color-surface)', border: '1px solid var(--color-border)', borderRadius: '14px', padding: '22px', display: 'flex', flexDirection: 'column', gap: '16px' }}>
-      <div style={{ display: 'flex', alignItems: 'flex-start', gap: '14px' }}>
-        <div style={{ width: '48px', height: '48px', backgroundColor: 'var(--color-surface-2)', borderRadius: '12px', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '24px', border: '1px solid var(--color-border)', flexShrink: 0 }}>
+    <div style={{ background: 'var(--white)', border: '1px solid var(--mid-grey)', borderRadius: '12px', padding: '16px', display: 'flex', flexDirection: 'column', gap: '14px' }}>
+      <div style={{ display: 'flex', alignItems: 'flex-start', gap: '12px' }}>
+        <div style={{ width: '40px', height: '40px', background: 'var(--text-primary)', color: 'var(--white)', borderRadius: '10px', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '20px', flexShrink: 0 }}>
           {space.icon}
         </div>
         <div style={{ flex: 1, minWidth: 0 }}>
-          <div style={{ fontSize: '16px', fontWeight: 700, marginBottom: '2px', color: space.color || 'var(--color-text)' }}>{space.name}</div>
-          {space.industry && <div style={{ display: 'inline-block', fontSize: '10px', fontWeight: 700, padding: '2px 8px', borderRadius: '99px', background: 'var(--color-surface-2)', color: 'var(--color-text-muted)', marginBottom: '4px' }}>{space.industry}</div>}
-          <div style={{ fontSize: '12px', color: 'var(--color-text-muted)' }}>
+          <div style={{ fontSize: 'var(--text-14)', fontWeight: 700, color: 'var(--text-primary)', marginBottom: '2px' }}>{space.name}</div>
+          {space.industry && <div style={{ display: 'inline-block', fontSize: '10px', fontWeight: 600, padding: '2px 8px', borderRadius: '4px', background: 'var(--light-grey)', color: 'var(--text-tertiary)', marginBottom: '4px' }}>{space.industry}</div>}
+          <div style={{ fontSize: 'var(--text-11)', color: 'var(--text-tertiary)' }}>
             {tasksToShow.length} task{tasksToShow.length !== 1 ? 's' : ''} · {done} done
-            {overdue > 0 && <span style={{ color: '#b20f00', marginLeft: '6px', fontWeight: 700 }}>· {overdue} overdue</span>}
+            {overdue > 0 && <span style={{ color: 'var(--accent)', marginLeft: '4px', fontWeight: 700 }}>· {overdue} overdue</span>}
           </div>
         </div>
       </div>
 
       {space.description && (
-        <p style={{ fontSize: '12px', color: 'var(--color-text-muted)', lineHeight: '1.5', margin: 0 }}>{space.description}</p>
+        <p style={{ fontSize: 'var(--text-12)', color: 'var(--text-tertiary)', lineHeight: '1.5', margin: 0 }}>{space.description}</p>
       )}
 
       {space.website && (
-        <a href={space.website} target="_blank" rel="noreferrer" style={{ display: 'inline-flex', alignItems: 'center', gap: '5px', fontSize: '11px', color: 'var(--color-text-muted)', textDecoration: 'none' }}>
+        <a href={space.website} target="_blank" rel="noreferrer" style={{ display: 'inline-flex', alignItems: 'center', gap: '4px', fontSize: 'var(--text-10)', color: 'var(--text-tertiary)', textDecoration: 'none' }}>
           <Globe size={11} /> {space.website.replace(/^https?:\/\//, '').replace(/\/$/, '')}
         </a>
       )}
 
       <div>
-        <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '11px', color: 'var(--color-text-muted)', marginBottom: '6px', fontWeight: 600 }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 'var(--text-10)', color: 'var(--text-tertiary)', marginBottom: '6px', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.06em' }}>
           <span>Progress</span>
-          <span>{pct}% complete</span>
+          <span>{pct}%</span>
         </div>
-        <div style={{ height: '6px', borderRadius: '99px', backgroundColor: 'var(--color-surface-2)', overflow: 'hidden' }}>
-          <div style={{ height: '100%', width: `${pct}%`, backgroundColor: pct === 100 ? '#4caf50' : '#111111', borderRadius: '99px', transition: 'width 0.4s' }} />
+        <div style={{ height: '4px', borderRadius: '99px', background: 'var(--light-grey)', overflow: 'hidden' }}>
+          <div style={{ height: '100%', width: `${pct}%`, background: pct === 100 ? 'var(--status-done)' : 'var(--text-primary)', borderRadius: '99px', transition: 'width 0.4s' }} />
         </div>
       </div>
 
       {Object.keys(typeBreakdown).length > 0 && (
         <div>
-          <div style={{ fontSize: '11px', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.6px', color: 'var(--color-text-muted)', marginBottom: '10px' }}>Task Types</div>
-          <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px' }}>
+          <div style={{ fontSize: '10px', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.12em', color: 'var(--text-primary)', marginBottom: '8px' }}>Task Types</div>
+          <div style={{ display: 'flex', flexWrap: 'wrap', gap: '4px' }}>
             {Object.entries(typeBreakdown).map(([type, count]) => {
               const TypeIcon = TYPE_ICONS[type] || HelpCircle;
-              const tc = TYPE_COLORS[type] || TYPE_COLORS.Other;
               return (
-                <span key={type} style={{ display: 'inline-flex', alignItems: 'center', gap: '5px', fontSize: '12px', fontWeight: 700, padding: '4px 10px', borderRadius: '99px', color: tc.color, backgroundColor: tc.bg, border: `1px solid ${tc.color}33` }}>
-                  <TypeIcon size={11} />
+                <span key={type} style={{ display: 'inline-flex', alignItems: 'center', gap: '4px', fontSize: '10px', fontWeight: 600, padding: '2px 8px', borderRadius: '4px', color: 'var(--text-tertiary)', background: 'var(--light-grey)' }}>
+                  <TypeIcon size={10} />
                   {type} <span style={{ opacity: 0.7 }}>× {count}</span>
                 </span>
               );

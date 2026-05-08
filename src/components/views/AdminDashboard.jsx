@@ -269,23 +269,23 @@ export default function AdminDashboard() {
     <div style={{ padding: '32px 40px', maxWidth: '960px', margin: '0 auto', width: '100%', boxSizing: 'border-box' }}>
 
       {/* Header */}
-      <div style={{ marginBottom: '28px', display: 'flex', alignItems: 'center', gap: '14px' }}>
-        <div style={{ width: '44px', height: '44px', borderRadius: '10px', backgroundColor: '#111111', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
-          <ShieldCheck size={22} color="white" />
+      <div style={{ marginBottom: '20px', display: 'flex', alignItems: 'center', gap: '12px' }}>
+        <div style={{ width: '40px', height: '40px', borderRadius: '10px', background: 'var(--text-primary)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+          <ShieldCheck size={20} color="white" />
         </div>
         <div>
-          <h1 style={{ fontSize: '26px', fontFamily: 'var(--font-display)', fontWeight: 700, lineHeight: 1.2 }}>Admin Panel</h1>
-          <p style={{ color: 'var(--color-text-muted)', fontSize: '13px', marginTop: '2px' }}>
+          <h1 style={{ fontSize: '20px', fontWeight: 900, letterSpacing: '-0.02em', lineHeight: 1.1, color: 'var(--text-primary)' }}>Admin Panel</h1>
+          <p style={{ color: 'var(--text-tertiary)', fontSize: '12px', marginTop: '2px' }}>
             Manage team, brands, and workspace · {currentUser?.name}
           </p>
         </div>
       </div>
 
       {/* Tab navigation */}
-      <div style={{ display: 'flex', gap: '4px', marginBottom: '28px', backgroundColor: 'var(--color-surface)', border: '1px solid var(--color-border)', borderRadius: '10px', padding: '4px', width: 'fit-content' }}>
+      <div style={{ display: 'flex', gap: '2px', marginBottom: '20px', background: 'var(--light-grey)', borderRadius: '8px', padding: '2px', width: 'fit-content' }}>
         {[{ id: 'team', label: 'Team', Icon: Users }, { id: 'brands', label: 'Brands', Icon: Building2 }, { id: 'overview', label: 'Overview', Icon: BarChart2 }].map(({ id, label, Icon }) => (
-          <button key={id} onClick={() => setTab(id)} style={{ display: 'flex', alignItems: 'center', gap: '7px', padding: '8px 18px', borderRadius: '7px', border: 'none', cursor: 'pointer', fontSize: '14px', fontWeight: 600, transition: 'all 0.15s', backgroundColor: tab === id ? '#111111' : 'transparent', color: tab === id ? '#ffffff' : 'var(--color-text-muted)' }}>
-            <Icon size={14} />{label}
+          <button key={id} onClick={() => setTab(id)} style={{ display: 'flex', alignItems: 'center', gap: '6px', padding: '6px 14px', borderRadius: '6px', border: 'none', cursor: 'pointer', fontSize: '12px', fontWeight: 600, transition: 'all 0.15s', background: tab === id ? 'var(--white)' : 'transparent', color: tab === id ? 'var(--text-primary)' : 'var(--text-dim)', boxShadow: tab === id ? '0 1px 2px rgba(0,0,0,0.06)' : 'none' }}>
+            <Icon size={13} />{label}
           </button>
         ))}
       </div>

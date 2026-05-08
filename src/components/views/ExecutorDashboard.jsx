@@ -4,7 +4,7 @@ import { useUI } from '../../store/UIContext';
 import {
   ArrowLeft, CheckCircle2, MessageSquare,
   Send, ChevronRight, ChevronDown, Clock, AlertTriangle, Tag,
-  Layers, Flag, LogOut, Link,
+  Layers, Flag, Link,
   Film, Image, PenLine, Target, FileText, HelpCircle
 } from 'lucide-react';
 import './ExecutorDashboard.css';
@@ -18,10 +18,10 @@ const TYPE_ICONS = {
 // Priority config
 // ─────────────────────────────────────────────
 const PRIORITY_MAP = {
-  Urgent: { label: 'P1', color: '#b20f00', bg: 'rgba(178,15,0,0.15)' },
-  High:   { label: 'P2', color: '#ff9800', bg: 'rgba(255,152,0,0.15)' },
-  Normal: { label: 'P3', color: '#2196f3', bg: 'rgba(33,150,243,0.15)' },
-  Low:    { label: 'P4', color: '#888888', bg: 'rgba(136,136,136,0.12)' },
+  Urgent: { label: 'P1', color: '#B20F00', bg: 'rgba(178,15,0,0.08)' },
+  High:   { label: 'P2', color: '#080808', bg: 'rgba(8,8,8,0.06)' },
+  Normal: { label: 'P3', color: '#888888', bg: 'rgba(136,136,136,0.10)' },
+  Low:    { label: 'P4', color: '#BBBBBB', bg: 'rgba(187,187,187,0.10)' },
 };
 
 const STATUS_COLORS = {
@@ -416,7 +416,7 @@ function BrandCard({ space, tasks, onClick }) {
 // ─────────────────────────────────────────────
 export default function ExecutorDashboard() {
   const { state, dispatch } = useStore();
-  const { currentUser, signOut, setSelectedTaskId } = useUI();
+  const { currentUser, setSelectedTaskId } = useUI();
   const [activeBrandId, setActiveBrandId] = useState(null);
 
   const myTasks = state.tasks.filter(t => t.assignees?.includes(currentUser?.id));
@@ -469,17 +469,8 @@ export default function ExecutorDashboard() {
       <div className="exec-dash-header">
         <div>
           <h2 className="exec-dash-title">My Tasks</h2>
-          <p className="exec-dash-sub">Welcome back, <strong>{currentUser?.name}</strong> — here's your work across all brands.</p>
+          <p className="exec-dash-sub">{currentUser?.name?.split(' ')[0]} · {state.tasks.filter(t => t.assignees?.includes(currentUser?.id) && t.status !== 'Done').length} open</p>
         </div>
-        <button
-          onClick={signOut}
-          style={{ display: 'flex', alignItems: 'center', gap: '7px', padding: '8px 16px', background: 'var(--color-surface)', border: '1px solid var(--color-border)', borderRadius: '8px', color: 'var(--color-text-muted)', fontSize: '13px', fontWeight: 600, cursor: 'pointer', transition: 'all 0.2s' }}
-          onMouseEnter={e => { e.currentTarget.style.color = 'var(--color-accent)'; e.currentTarget.style.borderColor = 'var(--color-accent)'; }}
-          onMouseLeave={e => { e.currentTarget.style.color = 'var(--color-text-muted)'; e.currentTarget.style.borderColor = 'var(--color-border)'; }}
-        >
-          <LogOut size={14} /> Log Out
-
-        </button>
       </div>
 
       {/* KPI Row */}
